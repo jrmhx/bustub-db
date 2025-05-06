@@ -33,17 +33,30 @@ main() {
 
 install() {
   set -x
-  UNAME=$(uname | tr "[:lower:]" "[:upper:]" )
+  UNAME=$(uname | tr "[:lower:]" "[:upper:]")
 
   case $UNAME in
     DARWIN) install_mac ;;
 
     LINUX)
       version=$(cat /etc/os-release | grep VERSION_ID | cut -d '"' -f 2)
-      case $version in
-        18.04) install_linux ;;
-        20.04) install_linux ;;
-        22.04) install_linux ;;
+      distro=$(cat /etc/os-release | grep ^ID= | cut -d '=' -f 2)
+
+      case $distro in
+        debian)
+          case $version in
+            12) install_linux ;; # Debian 12
+            *) give_up ;;
+          esac
+          ;;
+        ubuntu)
+          case $version in
+            18.04) install_linux ;;
+            20.04) install_linux ;;
+            22.04) install_linux ;;
+            *) give_up ;;
+          esac
+          ;;
         *) give_up ;;
       esac
       ;;
