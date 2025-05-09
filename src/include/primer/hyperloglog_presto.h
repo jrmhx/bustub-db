@@ -15,6 +15,7 @@
 #include <bitset>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <shared_mutex>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -30,6 +31,7 @@
 
 /** @brief Total bucket size. */
 #define TOTAL_BUCKET_SIZE (DENSE_BUCKET_SIZE + OVERFLOW_BUCKET_SIZE)
+#define BITS_SIZE 64
 
 namespace bustub {
 
@@ -51,13 +53,22 @@ class HyperLogLogPresto {
   explicit HyperLogLogPresto(int16_t n_leading_bits);
 
   /** @brief Returns the dense_bucket_ data structure. */
-  auto GetDenseBucket() const -> std::vector<std::bitset<DENSE_BUCKET_SIZE>> { return dense_bucket_; }
+  auto GetDenseBucket() const -> std::vector<std::bitset<DENSE_BUCKET_SIZE>> {
+    std::shared_lock<std::shared_mutex> lock(smtx_);
+    return dense_bucket_;
+  }
 
   /** @brief Returns overflow bucket of a specific given index. */
-  auto GetOverflowBucketofIndex(uint16_t idx) { return overflow_bucket_[idx]; }
+  auto GetOverflowBucketofIndex(uint16_t idx) {
+    std::shared_lock<std::shared_mutex> lock(smtx_);
+    return overflow_bucket_[idx];
+  }
 
   /** @brief Retusn the cardinality of the set. */
-  auto GetCardinality() const -> uint64_t { return cardinality_; }
+  auto GetCardinality() const -> uint64_t {
+    std::shared_lock<std::shared_mutex> lock(smtx_);
+    return cardinality_;
+  }
 
   auto AddElem(KeyType val) -> void;
 
@@ -82,6 +93,8 @@ class HyperLogLogPresto {
     return 0;
   }
 
+  auto GetBucketValue(uint16_t idx) -> uint64_t;
+
   /** @brief Structure holding dense buckets (or also known as registers). */
   std::vector<std::bitset<DENSE_BUCKET_SIZE>> dense_bucket_;
 
@@ -92,6 +105,8 @@ class HyperLogLogPresto {
   uint64_t cardinality_;
 
   // TODO(student) - can add more data structures as required
+  mutable std::shared_mutex smtx_;
+  uint16_t leading_bits_;
 };
 
 }  // namespace bustub

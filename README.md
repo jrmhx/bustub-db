@@ -112,6 +112,12 @@ $ cmake -DCMAKE_BUILD_TYPE=Debug -DBUSTUB_SANITIZER=thread ..
 $ make -j`nproc`
 ```
 
+Using clang for cmake:
+
+```bash
+cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug ..
+```
+
 There are some differences between macOS and Linux (i.e., mutex behavior) that might cause test cases
 to produce different results in different platforms. We recommend students to use a Linux VM for running
 test cases and reproducing errors whenever possible.

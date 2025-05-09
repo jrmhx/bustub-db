@@ -15,6 +15,7 @@
 #include <bitset>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <shared_mutex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -42,7 +43,10 @@ class HyperLogLog {
    *
    * @returns cardinality value
    */
-  auto GetCardinality() { return cardinality_; }
+  auto GetCardinality() {
+    std::shared_lock<std::shared_mutex> lock(smtx_);
+    return cardinality_;
+  }
 
   auto AddElem(KeyType val) -> void;
 
@@ -73,6 +77,9 @@ class HyperLogLog {
   size_t cardinality_;
 
   /** @todo (student) can add their data structures that support HyperLogLog */
+  std::vector<size_t> buckets_;
+  size_t n_bits_;
+  mutable std::shared_mutex smtx_;
 };
 
 }  // namespace bustub
