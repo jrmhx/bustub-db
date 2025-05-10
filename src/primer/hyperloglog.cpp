@@ -12,6 +12,7 @@
 
 #include "primer/hyperloglog.h"
 #include <cmath>
+#include <cstdint>
 #include <mutex>
 #include <shared_mutex>
 #include <vector>
@@ -26,7 +27,7 @@ HyperLogLog<KeyType>::HyperLogLog(int16_t n_bits) : cardinality_(0) {
   }
   n_bits_ = static_cast<size_t>(n_bits);
   auto n_buckets = static_cast<size_t>(std::pow(2, n_bits));
-  buckets_ = std::vector<size_t>(n_buckets, 0);
+  buckets_ = std::vector<uint64_t>(n_buckets, 0);
 }
 
 /**

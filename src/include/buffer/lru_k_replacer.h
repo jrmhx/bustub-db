@@ -24,6 +24,8 @@
 
 namespace bustub {
 
+constexpr const uint64_t INF_DISTANCE = std::numeric_limits<uint64_t>::infinity();
+
 enum class AccessType { Unknown = 0, Lookup, Scan, Index };
 
 class LRUKNode {

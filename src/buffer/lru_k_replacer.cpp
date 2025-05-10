@@ -13,6 +13,7 @@
 #include "buffer/lru_k_replacer.h"
 #include "common/exception.h"
 
+
 namespace bustub {
 
 /**
@@ -54,7 +55,9 @@ auto LRUKReplacer::Evict() -> std::optional<frame_id_t> { return std::nullopt; }
  * @param access_type type of access that was received. This parameter is only needed for
  * leaderboard tests.
  */
-void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {}
+void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
+  
+}
 
 /**
  * TODO(P1): Add implementation
