@@ -53,7 +53,7 @@ auto HyperLogLog<KeyType>::PositionOfLeftmostOne(const std::bitset<BITSET_CAPACI
   /** @TODO(student) Implement this function! */
   size_t count = 0;
 
-  for (auto i = BITSET_CAPACITY - 1 - n_bits_; i >= 0; i--) {
+  for (int64_t i = BITSET_CAPACITY - 1 - n_bits_; i >= 0; i--) {
     count++;
     if (static_cast<int>(bset[i]) != 0) {
       break;
