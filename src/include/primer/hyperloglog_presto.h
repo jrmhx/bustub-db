@@ -64,11 +64,8 @@ class HyperLogLogPresto {
     return overflow_bucket_[idx];
   }
 
-  /** @brief Retusn the cardinality of the set. */
-  auto GetCardinality() const -> uint64_t {
-    std::shared_lock<std::shared_mutex> lock(smtx_);
-    return cardinality_;
-  }
+  /** @brief Returns the cardinality of the set. */
+  auto GetCardinality() const -> uint64_t { return cardinality_; }
 
   auto AddElem(KeyType val) -> void;
 
