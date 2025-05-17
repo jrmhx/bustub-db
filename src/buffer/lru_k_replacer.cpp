@@ -11,7 +11,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/lru_k_replacer.h"
+#include <climits>
+#include <mutex>
+#include <optional>
+#include "common/config.h"
 #include "common/exception.h"
+#include "common/macros.h"
 
 
 namespace bustub {
@@ -40,7 +45,33 @@ LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_fra
  *
  * @return true if a frame is evicted successfully, false if no frames can be evicted.
  */
-auto LRUKReplacer::Evict() -> std::optional<frame_id_t> { return std::nullopt; }
+auto LRUKReplacer::Evict() -> std::optional<frame_id_t> { 
+  std::lock_guard<std::mutex> guard(this->latch_);
+  frame_id_t frame = 0;
+  bool find_evictable = false;
+  size_t min_history = ULONG_MAX;
+  size_t min_k = this->k_;
+  for (auto it=this->node_store_.begin(); it != this->node_store_.end(); it++){
+    if (it->second.is_evictable_) {
+      find_evictable = true;
+      if (it->second.k_ < min_k) {
+        min_k = it->second.k_;
+        min_history = it->second.history_;
+        frame = it->first;
+      } else if (it->second.history_ < min_history) {
+        min_history = it->second.history_;
+        frame = it->first;
+      }
+    }
+  }
+  if (find_evictable) {
+    this->node_store_.erase(frame);
+    this->curr_size_--;
+    return std::optional<frame_id_t>(frame);
+  } else {
+    return std::nullopt;
+  }
+}
 
 /**
  * TODO(P1): Add implementation
@@ -56,7 +87,22 @@ auto LRUKReplacer::Evict() -> std::optional<frame_id_t> { return std::nullopt; }
  * leaderboard tests.
  */
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
-  
+  std::lock_guard<std::mutex> guard(this->latch_);
+  BUSTUB_ASSERT(static_cast<size_t>(frame_id) <= this->replacer_size_, 
+    "frame id is invalid (larger than replacer_size_)");
+  this->current_timestamp_ ++;
+  if (this->node_store_.find(frame_id) != this->node_store_.end()) {
+    this->node_store_[frame_id].history_ = current_timestamp_;
+    this->node_store_[frame_id].k_ ++;
+  } else {
+      this->node_store_[frame_id] = LRUKNode{
+        current_timestamp_,
+        1,
+        frame_id,
+        false
+      };
+    }
+  }
 }
 
 /**
@@ -76,7 +122,7 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
  * @param frame_id id of frame whose 'evictable' status will be modified
  * @param set_evictable whether the given frame is evictable or not
  */
-void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {}
+void bustub::LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {}
 
 /**
  * TODO(P1): Add implementation
