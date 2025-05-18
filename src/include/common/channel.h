@@ -57,3 +57,14 @@ class Channel {
   std::queue<T> q_;
 };
 }  // namespace bustub
+
+// quick note about std::condition_variable
+// 1. a thread has to own a lock to call cv.wait(lock, predicate)
+// 2. after calling cv.wait(), the thread is suspent and release the lock (so other thread might wait for the same condition as well)
+// 3. to call cv.notify() the thread doesnt necessarily need own a lock, 
+//    however the best practice is the thread get the lock first, update some shared states and release lock and notify this is to avoid data race
+// 4. when the waiting thread(s) receive notify they will do following:
+//    1) try acquire the lock passed in wait()
+//    2) check the if predicate is still fullfill (this is to avoid) that there might be state changes when the lock is unlocked and notify() are sent
+//    3) if the above 2 check is true, the thread is woken up and own the lock again to process 
+//       otherwise the thread will wait again.
