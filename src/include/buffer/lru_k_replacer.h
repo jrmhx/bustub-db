@@ -13,7 +13,7 @@
 #pragma once
 
 #include <cstddef>
-#include <limits>
+#include <deque>
 #include <mutex>  // NOLINT
 #include <optional>
 #include <unordered_map>
@@ -23,24 +23,30 @@
 
 namespace bustub {
 
-constexpr const uint64_t INF_DISTANCE = std::numeric_limits<uint64_t>::infinity();
-
 enum class AccessType { Unknown = 0, Lookup, Scan, Index };
 
 class LRUKNode {
-  friend class LRUKReplacer;
+ public:
+  explicit LRUKNode(size_t k, frame_id_t fid, size_t access_timestamp);
+
+  void Access(const size_t current_timestamp);
+  auto GetKRecentAccessTime(const size_t current_timestamp) const -> size_t;
+  auto GetLastAccessTime() const -> size_t;
+  auto IsEvictable() const -> bool;
+  void SetIsEvictable(bool is_evictable);
+  auto GetFrameId() const -> frame_id_t;
+  auto operator<(const LRUKNode& other) const -> bool;
+  // TODO: add a set for ordered LRUNode in replacer
+  [[maybe_unused]]auto operator==(const LRUKNode& other) const -> bool;
+
  private:
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
 
-  size_t history_;
+  std::deque<size_t> history_;
   size_t k_;
   frame_id_t fid_;
   bool is_evictable_{false};
-
- public:
-  LRUKNode(size_t history, size_t k, frame_id_t fid, bool is_evictable) : 
-    history_(history), k_(k), fid_(fid), is_evictable_(is_evictable) {}
 };
 
 /**
@@ -85,7 +91,7 @@ class LRUKReplacer {
   size_t curr_size_{0};
   size_t replacer_size_;
   size_t k_;
-  std::mutex latch_;
+  mutable std::mutex latch_;
 };
 
 }  // namespace bustub
