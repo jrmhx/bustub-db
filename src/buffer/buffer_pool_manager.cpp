@@ -479,6 +479,7 @@ auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
   //   return true;
   // }
   // return false;
+  std::scoped_lock lock(*bpm_latch_);
   return FlushPageUnsafe(page_id);
 }
 
@@ -529,6 +530,7 @@ void BufferPoolManager::FlushAllPages() {
   //     rpg_opt->Flush();
   //   }
   // }
+  std::scoped_lock lock(*bpm_latch_);
   return FlushAllPagesUnsafe();
 }
 
