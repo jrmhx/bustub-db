@@ -246,3 +246,4 @@ docs/dev
 *.zip
 
 /sandbox
+GRADESCOPE.md
