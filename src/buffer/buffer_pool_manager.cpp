@@ -446,6 +446,8 @@ auto BufferPoolManager::FlushPageUnsafe(page_id_t page_id) -> bool {
 
     flush_result = result.get();
     fptr->is_dirty_.store(!flush_result);
+  } else {
+    return true;
   }
   return flush_result;
 }
