@@ -40,12 +40,6 @@ struct DiskRequest {
 
   /** Callback used to signal to the request issuer when the request has been completed. */
   std::promise<bool> callback_;
-
-  DiskRequest(const DiskRequest&) = delete;
-  DiskRequest& operator=(const DiskRequest&) = delete;
-
-  DiskRequest(DiskRequest&&) = default;
-  DiskRequest& operator=(DiskRequest&&) = default;
 };
 
 /**

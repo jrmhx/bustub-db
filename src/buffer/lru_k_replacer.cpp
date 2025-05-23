@@ -82,16 +82,16 @@ LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_fra
  */
 auto LRUKReplacer::Evict() -> std::optional<frame_id_t> { 
   std::lock_guard guard(latch_);
-  std::optional<frame_id_t> vict_fid;
+  std::optional<frame_id_t> vict_fid = std::nullopt;
 
   for (const auto& [fid, node] : node_store_){
     if (node.IsEvictable()) {
       if (vict_fid.has_value()) {
         if (node < node_store_.at(vict_fid.value())) {
-          vict_fid = node.GetFrameId();
+          vict_fid = std::make_optional(node.GetFrameId());
         }
       } else {
-        vict_fid = node.GetFrameId();
+        vict_fid = std::make_optional(node.GetFrameId());
       }
     }
   }
@@ -102,10 +102,9 @@ auto LRUKReplacer::Evict() -> std::optional<frame_id_t> {
       node_store_.erase(it);
       curr_size_ --;
     }
-    return vict_fid;
-  } else {
-    return std::nullopt;
-  }
+  } 
+
+  return vict_fid;
 }
 
 /**
@@ -122,8 +121,8 @@ auto LRUKReplacer::Evict() -> std::optional<frame_id_t> {
  */
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
   std::lock_guard guard(latch_);
-  bool isFrameIdIvalid = static_cast<size_t>(frame_id) >= replacer_size_;
-  BUSTUB_ASSERT(!isFrameIdIvalid, "frame_id is invalid!");
+  bool is_frameid_invalid = static_cast<size_t>(frame_id) >= replacer_size_;
+  BUSTUB_ENSURE(!is_frameid_invalid, "frame_id is invalid!");
 
   current_timestamp_ ++;
 
@@ -164,9 +163,13 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
     it->second.SetIsEvictable(set_evictable);
 
     if (prev) {
-      if (!set_evictable) curr_size_ --;
+      if (!set_evictable) {
+        curr_size_ --;
+      }
     } else {
-      if (set_evictable) curr_size_ ++;
+      if (set_evictable) {
+        curr_size_ ++;
+      }
     }
   }
 }

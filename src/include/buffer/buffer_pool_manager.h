@@ -14,6 +14,7 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <shared_mutex>
 #include <unordered_map>
 #include <vector>
@@ -64,6 +65,7 @@ class FrameHeader {
  public:
   explicit FrameHeader(frame_id_t frame_id);
 
+
  private:
   auto GetData() const -> const char *;
   auto GetDataMut() -> char *;
@@ -95,6 +97,8 @@ class FrameHeader {
    * currently storing. This might allow you to skip searching for the corresponding (page ID, frame ID) pair somewhere
    * else in the buffer pool manager...
    */
+
+  std::optional<page_id_t> page_id_;
 };
 
 /**
@@ -126,6 +130,8 @@ class BufferPoolManager {
   void FlushAllPagesUnsafe();
   void FlushAllPages();
   auto GetPinCount(page_id_t page_id) -> std::optional<size_t>;
+  auto EvictUnsafe() -> std::optional<frame_id_t>;
+  auto LoadPageFromDiskUnsafe(page_id_t page_id, frame_id_t frame_id) -> bool;
 
  private:
   /** @brief The number of frames in the buffer pool. */
@@ -135,7 +141,7 @@ class BufferPoolManager {
   std::atomic<page_id_t> next_page_id_;
 
   /**
-   * @brief The latch protecting the buffer pool's inner data structures.
+   * @brief this latch protect access to frames_, free_frames_, replacer_, page_table_, disk_scheduler_
    *
    * TODO(P1) We recommend replacing this comment with details about what this latch actually protects.
    */

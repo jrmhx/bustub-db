@@ -23,7 +23,7 @@ namespace bustub {
 const size_t FRAMES = 10;
 const size_t K_DIST = 2;
 
-TEST(PageGuardTest, DISABLED_DropTest) {
+TEST(PageGuardTest, DropTest) {
   auto disk_manager = std::make_shared<DiskManagerUnlimitedMemory>();
   auto bpm = std::make_shared<BufferPoolManager>(FRAMES, disk_manager.get(), K_DIST);
 
@@ -91,7 +91,8 @@ TEST(PageGuardTest, DISABLED_DropTest) {
   // Get a new write page and edit it. We will retrieve it later
   const auto mutable_page_id = bpm->NewPage();
   auto mutable_guard = bpm->WritePage(mutable_page_id);
-  strcpy(mutable_guard.GetDataMut(), "data");  // NOLINT
+  auto mutable_page_buffer = mutable_guard.GetDataMut();
+  strcpy(mutable_page_buffer, "data");  // NOLINT
   mutable_guard.Drop();
 
   {
@@ -106,13 +107,14 @@ TEST(PageGuardTest, DISABLED_DropTest) {
 
   // Fetching the flushed page should result in seeing the changed value.
   auto immutable_guard = bpm->ReadPage(mutable_page_id);
-  ASSERT_EQ(0, std::strcmp("data", immutable_guard.GetData()));
+  auto immutable_page_data = immutable_guard.GetData();
+  ASSERT_EQ(0, std::strcmp("data", immutable_page_data));
 
   // Shutdown the disk manager and remove the temporary file we created.
   disk_manager->ShutDown();
 }
 
-TEST(PageGuardTest, DISABLED_MoveTest) {
+TEST(PageGuardTest, MoveTest) {
   auto disk_manager = std::make_shared<DiskManagerUnlimitedMemory>();
   auto bpm = std::make_shared<BufferPoolManager>(FRAMES, disk_manager.get(), K_DIST);
 

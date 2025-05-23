@@ -29,14 +29,14 @@ class LRUKNode {
  public:
   explicit LRUKNode(size_t k, frame_id_t fid, size_t access_timestamp);
 
-  void Access(const size_t current_timestamp);
-  auto GetKRecentAccessTime(const size_t current_timestamp) const -> size_t;
+  void Access(size_t current_timestamp);
+  auto GetKRecentAccessTime(size_t current_timestamp) const -> size_t;
   auto GetLastAccessTime() const -> size_t;
   auto IsEvictable() const -> bool;
   void SetIsEvictable(bool is_evictable);
   auto GetFrameId() const -> frame_id_t;
   auto operator<(const LRUKNode& other) const -> bool;
-  // TODO: add a set for ordered LRUNode in replacer
+  // TODO(P1-jrmh): add a set for ordered LRUNode in replacer
   [[maybe_unused]]auto operator==(const LRUKNode& other) const -> bool;
 
  private:

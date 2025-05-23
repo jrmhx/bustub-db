@@ -40,8 +40,9 @@ DiskScheduler::~DiskScheduler() {
  */
 void DiskScheduler::Schedule(DiskRequest r) {
   auto req = std::make_optional(std::move(r));
-  // auto future = r.callback_.get_future();
-  if (req.has_value()) request_queue_.Put(std::move(req));
+  if (req.has_value()) {
+    request_queue_.Put(std::move(req));
+  }
 }
 
 /**
