@@ -23,18 +23,19 @@
 
 namespace bustub {
 
-enum class AccessType { Unknown = 0, Lookup, Scan, Index };
+enum class AccessType { Unknown = 0, Lookup, Scan, Index, Flush };
 
 class LRUKNode {
  public:
   explicit LRUKNode(size_t k, frame_id_t fid, size_t access_timestamp);
 
   void Access(size_t current_timestamp);
-  auto GetKRecentAccessTime(size_t current_timestamp) const -> size_t;
+  auto GetKRecentAccessTime() const -> size_t;
   auto GetLastAccessTime() const -> size_t;
   auto IsEvictable() const -> bool;
   void SetIsEvictable(bool is_evictable);
   auto GetFrameId() const -> frame_id_t;
+  auto GetOldestAccessTime() const -> size_t;
   auto operator<(const LRUKNode &other) const -> bool;
   // TODO(jrmh): add a set for ordered LRUNode in replacer
   [[maybe_unused]] auto operator==(const LRUKNode &other) const -> bool;
@@ -44,6 +45,7 @@ class LRUKNode {
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
 
   std::deque<size_t> history_;
+  size_t oldest_time_;
   size_t k_;
   frame_id_t fid_;
   bool is_evictable_{false};
@@ -84,13 +86,11 @@ class LRUKReplacer {
   auto Size() -> size_t;
 
  private:
-  // TODO(student): implement me! You can replace these member variables as you like.
-  // Remove maybe_unused if you start using them.
   std::unordered_map<frame_id_t, LRUKNode> node_store_;
   size_t current_timestamp_{0};
   size_t curr_size_{0};
-  size_t replacer_size_;
-  size_t k_;
+  const size_t replacer_size_;
+  const size_t k_;
   mutable std::mutex latch_;
 };
 

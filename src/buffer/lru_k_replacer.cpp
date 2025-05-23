@@ -12,6 +12,7 @@
 
 #include "buffer/lru_k_replacer.h"
 #include <climits>
+#include <cstddef>
 #include <deque>
 #include <mutex>
 #include <optional>
@@ -20,7 +21,8 @@
 #include "common/macros.h"
 
 namespace bustub {
-LRUKNode::LRUKNode(size_t k, frame_id_t fid, size_t access_timestamp) : k_(k), fid_(fid) {
+LRUKNode::LRUKNode(size_t k, frame_id_t fid, size_t access_timestamp)
+    : oldest_time_(access_timestamp), k_(k), fid_(fid) {
   BUSTUB_ASSERT(k > 0, "k should be a positive value");
   history_ = std::deque<size_t>(k_, 0);
   this->history_[k - 1] = access_timestamp;
@@ -31,14 +33,17 @@ void LRUKNode::Access(const size_t current_timestamp) {
   this->history_.pop_front();
 }
 
-auto LRUKNode::GetKRecentAccessTime(const size_t current_timestamp) const -> size_t {
-  BUSTUB_ASSERT(!this->history_.empty(), "history_ should never be empty");
+auto LRUKNode::GetKRecentAccessTime() const -> size_t {
+  BUSTUB_ENSURE(!this->history_.empty(), "history_ should never be empty");
   return this->history_.front();
 }
 auto LRUKNode::GetLastAccessTime() const -> size_t {
   BUSTUB_ASSERT(!this->history_.empty(), "history_ should never be empty");
   return this->history_.back();
 }
+
+auto LRUKNode::GetOldestAccessTime() const -> size_t { return oldest_time_; }
+
 auto LRUKNode::IsEvictable() const -> bool { return this->is_evictable_; }
 void LRUKNode::SetIsEvictable(bool is_evictable) { this->is_evictable_ = is_evictable; }
 
@@ -56,7 +61,6 @@ auto LRUKNode::operator==(const LRUKNode &other) const -> bool { return this->fi
 LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
 /**
- *
  * @brief Find the frame with largest backward k-distance and evict that frame. Only frames
  * that are marked as 'evictable' are candidates for eviction.
  *
@@ -71,29 +75,39 @@ LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_fra
  */
 auto LRUKReplacer::Evict() -> std::optional<frame_id_t> {
   std::lock_guard guard(latch_);
-  std::optional<frame_id_t> vict_fid = std::nullopt;
+  std::optional<frame_id_t> victim = std::nullopt;
+  size_t max_distance = 0;
+  size_t oldest_time = 0;
+  bool found_inf = false;
 
   for (const auto &[fid, node] : node_store_) {
-    if (node.IsEvictable()) {
-      if (vict_fid.has_value()) {
-        if (node < node_store_.at(vict_fid.value())) {
-          vict_fid = std::make_optional(node.GetFrameId());
-        }
-      } else {
-        vict_fid = std::make_optional(node.GetFrameId());
+    if (!node.IsEvictable()) {
+      continue;
+    }
+    // If node has less than k accesses, its backward K-distance is +inf
+    bool inf_distance = node.GetKRecentAccessTime() == 0;
+    if (inf_distance) {
+      if (!found_inf || node.GetOldestAccessTime() < oldest_time) {
+        victim = fid;
+        oldest_time = node.GetOldestAccessTime();
+        found_inf = true;
+      }
+    } else if (!found_inf) {
+      size_t distance = current_timestamp_ - node.GetKRecentAccessTime();
+      if (!victim.has_value() || distance > max_distance ||
+          (distance == max_distance && node.GetOldestAccessTime() < oldest_time)) {
+        victim = fid;
+        max_distance = distance;
+        oldest_time = node.GetOldestAccessTime();
       }
     }
   }
 
-  if (vict_fid.has_value()) {
-    const auto it = node_store_.find(vict_fid.value());
-    if (it != node_store_.end()) {
-      node_store_.erase(it);
-      curr_size_--;
-    }
+  if (victim.has_value()) {
+    node_store_.erase(victim.value());
+    curr_size_--;
   }
-
-  return vict_fid;
+  return victim;
 }
 
 /**

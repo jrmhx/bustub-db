@@ -80,7 +80,7 @@ class FrameHeader {
   std::atomic<size_t> pin_count_;
 
   /** @brief The dirty flag. */
-  bool is_dirty_;
+  std::atomic<bool> is_dirty_;
 
   /**
    * @brief A pointer to the data of the page that this frame holds.
@@ -138,7 +138,7 @@ class BufferPoolManager {
   std::atomic<page_id_t> next_page_id_;
 
   /**
-   * @brief this latch protect access to frames_, free_frames_, replacer_, page_table_, disk_scheduler_
+   * @brief this latch protect access to frames_, free_frames_, replacer_, page_table_
    *
    *
    */

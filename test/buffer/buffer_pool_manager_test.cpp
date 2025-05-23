@@ -435,4 +435,147 @@ TEST(BufferPoolManagerTest, EvictableTest) {
   }
 }
 
+TEST(BufferPoolManagerTest, FlushPageEasyTest) {
+  auto disk_manager = std::make_shared<DiskManager>(db_fname);
+  auto bpm = std::make_shared<BufferPoolManager>(2, disk_manager.get(), 2);
+
+  const page_id_t pid = bpm->NewPage();
+  const std::string str = "flush test";
+
+  // Write some data to the page.
+  {
+    auto write_guard = bpm->WritePage(pid);
+    CopyString(write_guard.GetDataMut(), str);
+  }
+
+  auto rpg = bpm->CheckedReadPage(pid);
+
+  rpg->Drop();
+  // Flush the page.
+  ASSERT_TRUE(bpm->FlushPage(pid));
+
+  // After flushing, the page should be unpinned (pin count == 0).
+  // If you forget to Drop() the guard in FlushPage, pin count will be 1 and this will fail.
+  auto pin_count = bpm->GetPinCount(pid);
+  ASSERT_TRUE(pin_count.has_value());
+  EXPECT_EQ(0, pin_count.value());
+
+  // The data should still be correct after flush.
+  {
+    auto read_guard = bpm->ReadPage(pid);
+    EXPECT_STREQ(read_guard.GetData(), str.c_str());
+  }
+}
+
+TEST(BufferPoolManagerTest, FlushPageRaceConditionTest) {
+  auto disk_manager = std::make_shared<DiskManager>(db_fname);
+  auto bpm = std::make_shared<BufferPoolManager>(2, disk_manager.get(), 2);
+
+  const page_id_t pid = bpm->NewPage();
+  const std::string str1 = "flush race 1";
+  const std::string str2 = "flush race 2";
+  const int num_writers = 10;
+
+  std::atomic<int> writers_ready{0};
+  std::atomic<bool> start_writing{false};
+  std::vector<std::thread> writers;
+
+  // Each writer will wait for the signal, then write to the page.
+  for (int i = 0; i < num_writers; i++) {
+    writers.emplace_back([&, i]() {
+      writers_ready.fetch_add(1);
+      while (!start_writing.load()) {
+      }
+      auto write_guard = bpm->WritePage(pid);
+      // Each writer writes a different string
+      std::string my_str = str2 + std::to_string(i);
+      CopyString(write_guard.GetDataMut(), my_str);
+      // Hold the lock for a bit to increase overlap
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      write_guard.Drop();
+    });
+  }
+
+  // Wait for all writers to be ready
+  while (writers_ready.load() < num_writers) {
+  }
+
+  // Start all writers at once
+  start_writing = true;
+
+  // Give writers a moment to acquire the write lock
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+  // Try to flush while writers are active
+  // If FlushPage uses a ReadPageGuard, this may run concurrently with writers and see inconsistent data.
+  // If FlushPage uses a WritePageGuard, it will block until all writers are done.
+  ASSERT_TRUE(bpm->FlushPage(pid));
+
+  // Wait for all writers to finish
+  for (auto &t : writers) {
+    t.join();
+  }
+
+  // Read back the data and check for consistency.
+  auto read_guard = bpm->ReadPage(pid);
+  std::string data = read_guard.GetData();
+  // The data should match one of the writers' strings, never a mix or corrupted.
+  bool match = false;
+  for (int i = 0; i < num_writers; i++) {
+    if (data == str2 + std::to_string(i)) {
+      match = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(match);
+}
+
+TEST(BufferPoolManagerTest, StaircaseTest) {
+  // Create a buffer pool with fewer frames than we'll need for all pages
+  auto disk_manager = std::make_shared<DiskManager>(db_fname);
+
+  auto bpm = std::make_unique<BufferPoolManager>(5, disk_manager.get(), 10);
+
+  // Initialize several pages with data
+  const int num_pages = 10;
+  for (int i = 0; i < num_pages; i++) {
+    page_id_t page_id = bpm->NewPage();
+    auto guard = bpm->WritePage(page_id);
+    // Write some data
+    guard.Drop();  // Release explicitly or let destructor handle it
+  }
+
+  // Create two threads that will access pages in different orders
+  std::thread t1([&]() {
+    // Thread 1: Accesses pages in forward order
+    for (int i = 0; i < num_pages; i++) {
+      // Get a write guard for page i
+      auto guard = bpm->WritePage(i);
+      // Modify page data
+
+      // Force a flush of another page while holding this guard
+      bpm->FlushPage((i + 1) % num_pages);
+
+      // Guard is released at end of scope
+    }
+  });
+
+  std::thread t2([&]() {
+    // Thread 2: Accesses pages in reverse order
+    for (int i = num_pages - 1; i >= 0; i--) {
+      // Try to get a write guard for page i
+      auto guard = bpm->WritePage(i);
+      // Modify page data
+
+      // Force a flush of another page while holding this guard
+      bpm->FlushPage((i - 1 + num_pages) % num_pages);
+
+      // Guard is released at end of scope
+    }
+  });
+
+  t1.join();
+  t2.join();
+}
+
 }  // namespace bustub

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "storage/page/page_guard.h"
+#include <cstddef>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -94,6 +95,7 @@ auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & 
     return *this;
   }
   this->Drop();
+
   this->page_id_ = that.page_id_;
   this->frame_ = std::move(that.frame_);
   this->replacer_ = std::move(that.replacer_);
@@ -125,8 +127,10 @@ auto ReadPageGuard::GetData() const -> const char * {
  */
 auto ReadPageGuard::IsDirty() const -> bool {
   BUSTUB_ENSURE(is_valid_, "tried to use an invalid read guard");
-  return frame_->is_dirty_;
+  return frame_->is_dirty_.load();
 }
+
+auto ReadPageGuard::IsValid() const -> bool { return is_valid_; }
 
 /**
  * @brief Flushes this page's data safely to disk.
@@ -147,7 +151,7 @@ void ReadPageGuard::Flush() {
 
   auto ok = flush_result.get();
   BUSTUB_ENSURE(ok, "flush page into disk failed");
-  frame_->is_dirty_ = false;
+  frame_->is_dirty_.store(false);
 }
 
 /**
@@ -214,6 +218,7 @@ WritePageGuard::WritePageGuard(page_id_t page_id, std::shared_ptr<FrameHeader> f
   // std::scoped_lock lock(*bpm_latch);
   frame_->rwlatch_.lock();
   is_valid_ = true;
+  frame_->is_dirty_.store(true);
   // frame_->pin_count_.fetch_add(1);
   // replacer control should be done in the caller level
   // replacer_->SetEvictable(frame_->frame_id_, false);
@@ -306,8 +311,10 @@ auto WritePageGuard::GetDataMut() -> char * {
  */
 auto WritePageGuard::IsDirty() const -> bool {
   BUSTUB_ENSURE(is_valid_, "tried to use an invalid write guard");
-  return frame_->is_dirty_;
+  return frame_->is_dirty_.load();
 }
+
+auto WritePageGuard::IsValid() const -> bool { return is_valid_; }
 
 /**
  * @brief Flushes this page's data safely to disk.
@@ -327,7 +334,7 @@ void WritePageGuard::Flush() {
 
   auto ok = flush_result.get();
   BUSTUB_ENSURE(ok, "flush page into disk failed");
-  frame_->is_dirty_ = false;
+  frame_->is_dirty_.store(false);
 }
 
 /**
@@ -349,8 +356,6 @@ void WritePageGuard::Drop() {
     is_valid_ = false;
     return;
   }
-
-  frame_->is_dirty_ = true;
 
   std::scoped_lock lock(*bpm_latch_);
   if (frame_->pin_count_.fetch_sub(1) == 1) {

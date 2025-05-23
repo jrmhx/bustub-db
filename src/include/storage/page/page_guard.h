@@ -56,6 +56,7 @@ class ReadPageGuard {
   auto operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard &;
   auto GetPageId() const -> page_id_t;
   auto GetData() const -> const char *;
+  auto IsValid() const -> bool;
   template <class T>
   auto As() const -> const T * {
     return reinterpret_cast<const T *>(GetData());
@@ -156,6 +157,7 @@ class WritePageGuard {
   WritePageGuard(WritePageGuard &&that) noexcept;
   auto operator=(WritePageGuard &&that) noexcept -> WritePageGuard &;
   auto GetPageId() const -> page_id_t;
+  auto IsValid() const -> bool;
   auto GetData() const -> const char *;
   template <class T>
   auto As() const -> const T * {
