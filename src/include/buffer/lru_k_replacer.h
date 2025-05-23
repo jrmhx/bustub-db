@@ -35,9 +35,9 @@ class LRUKNode {
   auto IsEvictable() const -> bool;
   void SetIsEvictable(bool is_evictable);
   auto GetFrameId() const -> frame_id_t;
-  auto operator<(const LRUKNode& other) const -> bool;
-  // TODO(P1-jrmh): add a set for ordered LRUNode in replacer
-  [[maybe_unused]]auto operator==(const LRUKNode& other) const -> bool;
+  auto operator<(const LRUKNode &other) const -> bool;
+  // TODO(jrmh): add a set for ordered LRUNode in replacer
+  [[maybe_unused]] auto operator==(const LRUKNode &other) const -> bool;
 
  private:
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */

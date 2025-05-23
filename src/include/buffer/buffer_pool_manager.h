@@ -65,7 +65,6 @@ class FrameHeader {
  public:
   explicit FrameHeader(frame_id_t frame_id);
 
-
  private:
   auto GetData() const -> const char *;
   auto GetDataMut() -> char *;
@@ -91,7 +90,7 @@ class FrameHeader {
   std::vector<char> data_;
 
   /**
-   * TODO(P1): You may add any fields or helper functions under here that you think are necessary.
+   *
    *
    * One potential optimization you could make is storing an optional page ID of the page that the `FrameHeader` is
    * currently storing. This might allow you to skip searching for the corresponding (page ID, frame ID) pair somewhere
@@ -130,8 +129,6 @@ class BufferPoolManager {
   void FlushAllPagesUnsafe();
   void FlushAllPages();
   auto GetPinCount(page_id_t page_id) -> std::optional<size_t>;
-  auto EvictUnsafe() -> std::optional<frame_id_t>;
-  auto LoadPageFromDiskUnsafe(page_id_t page_id, frame_id_t frame_id) -> bool;
 
  private:
   /** @brief The number of frames in the buffer pool. */
@@ -143,7 +140,7 @@ class BufferPoolManager {
   /**
    * @brief this latch protect access to frames_, free_frames_, replacer_, page_table_, disk_scheduler_
    *
-   * TODO(P1) We recommend replacing this comment with details about what this latch actually protects.
+   *
    */
   std::shared_ptr<std::mutex> bpm_latch_;
 
@@ -170,7 +167,7 @@ class BufferPoolManager {
   LogManager *log_manager_ __attribute__((__unused__));
 
   /**
-   * TODO(P1): You may add additional private members and helper functions if you find them necessary.
+   *
    *
    * There will likely be a lot of code duplication between the different modes of accessing a page.
    *
@@ -178,5 +175,8 @@ class BufferPoolManager {
    * stored inside of it. Additionally, you may also want to implement a helper function that returns either a shared
    * pointer to a `FrameHeader` that already has a page's data stored inside of it, or an index to said `FrameHeader`.
    */
+
+  auto EvictUnsafe() -> std::optional<frame_id_t>;
+  auto LoadPageFromDiskUnsafe(page_id_t page_id, frame_id_t frame_id) -> bool;
 };
 }  // namespace bustub

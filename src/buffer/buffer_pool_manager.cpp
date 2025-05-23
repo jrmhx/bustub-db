@@ -122,11 +122,11 @@ auto BufferPoolManager::Size() const -> size_t { return num_frames_; }
  * You will maintain a thread-safe, monotonically increasing counter in the form of a `std::atomic<page_id_t>`.
  * See the documentation on [atomics](https://en.cppreference.com/w/cpp/atomic/atomic) for more information.
  *
- * TODO(P1): Add implementation.
+ *
  *
  * @return The page ID of the newly allocated page.
  */
-auto BufferPoolManager::NewPage() -> page_id_t { 
+auto BufferPoolManager::NewPage() -> page_id_t {
   std::scoped_lock lock(*bpm_latch_);
   if (free_frames_.empty()) {
     EvictUnsafe();
@@ -139,7 +139,7 @@ auto BufferPoolManager::NewPage() -> page_id_t {
   auto fid = free_frames_.front();
   free_frames_.pop_front();
   auto free_frame = frames_[fid];
-  std::unique_lock frame_lock(free_frame->rwlatch_); // lock the frame
+  std::unique_lock frame_lock(free_frame->rwlatch_);  // lock the frame
   free_frame->page_id_ = std::make_optional(pid);
   replacer_->RecordAccess(fid);
   page_table_[pid] = fid;
@@ -160,12 +160,12 @@ auto BufferPoolManager::NewPage() -> page_id_t {
  *
  * You should call `DeallocatePage` in the disk scheduler to make the space available for new pages.
  *
- * TODO(P1): Add implementation.
+ *
  *
  * @param page_id The page ID of the page we want to delete.
  * @return `false` if the page exists but could not be deleted, `true` if the page didn't exist or deletion succeeded.
  */
-auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { 
+auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
   std::scoped_lock bpm_lock(*bpm_latch_);
   auto it = page_table_.find(page_id);
   if (it != page_table_.end()) {
@@ -218,7 +218,7 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
  *
  * These two functions are the crux of this project, so we won't give you more hints than this. Good luck!
  *
- * TODO(P1): Add implementation.
+ *
  *
  * @param page_id The ID of the page we want to write to.
  * @param access_type The type of page access.
@@ -236,7 +236,7 @@ auto BufferPoolManager::CheckedWritePage(page_id_t page_id, AccessType access_ty
     // lock the bpm
     std::scoped_lock lock(*bpm_latch_);
     auto it = page_table_.find(page_id);
-    if (it != page_table_.end()) { 
+    if (it != page_table_.end()) {
       // case 1: page is in memory
       fid_opt = std::make_optional(it->second);
       replacer_->RecordAccess(it->second);
@@ -267,15 +267,9 @@ auto BufferPoolManager::CheckedWritePage(page_id_t page_id, AccessType access_ty
     }
   }
   // it need to release the bpm latch here to avoid deadlock.
-  
+
   if (fptr != nullptr) {
-    wpguard = std::make_optional(WritePageGuard(
-      page_id,
-      fptr,
-      replacer_,
-      bpm_latch_,
-      disk_scheduler_
-    ));
+    wpguard = std::make_optional(WritePageGuard(page_id, fptr, replacer_, bpm_latch_, disk_scheduler_));
   }
   return wpguard;
 }
@@ -297,7 +291,6 @@ auto BufferPoolManager::CheckedWritePage(page_id_t page_id, AccessType access_ty
  *
  * See the implementation details of `CheckedWritePage`.
  *
- * TODO(P1): Add implementation.
  *
  * @param page_id The ID of the page we want to read.
  * @param access_type The type of page access.
@@ -312,7 +305,7 @@ auto BufferPoolManager::CheckedReadPage(page_id_t page_id, AccessType access_typ
     // lock the bpm
     std::scoped_lock lock(*bpm_latch_);
     auto it = page_table_.find(page_id);
-    if (it != page_table_.end()) { 
+    if (it != page_table_.end()) {
       // case 1: page is in memory
       fid_opt = std::make_optional(it->second);
       replacer_->RecordAccess(it->second);
@@ -343,15 +336,9 @@ auto BufferPoolManager::CheckedReadPage(page_id_t page_id, AccessType access_typ
     }
   }
   // it need to release the bpm latch here to avoid deadlock.
-  
+
   if (fptr != nullptr) {
-    rpguard = std::make_optional(ReadPageGuard(
-      page_id,
-      fptr,
-      replacer_,
-      bpm_latch_,
-      disk_scheduler_
-    ));
+    rpguard = std::make_optional(ReadPageGuard(page_id, fptr, replacer_, bpm_latch_, disk_scheduler_));
   }
   return rpguard;
 }
@@ -420,32 +407,28 @@ auto BufferPoolManager::ReadPage(page_id_t page_id, AccessType access_type) -> R
  * You should probably leave implementing this function until after you have completed `CheckedReadPage` and
  * `CheckedWritePage`, as it will likely be much easier to understand what to do.
  *
- * TODO(P1): Add implementation
+ *
  *
  * @param page_id The page ID of the page to be flushed.
  * @return `false` if the page could not be found in the page table, otherwise `true`.
  */
 // this unsafe method should be used in block that acquires bpm_latch
-auto BufferPoolManager::FlushPageUnsafe(page_id_t page_id) -> bool { 
+auto BufferPoolManager::FlushPageUnsafe(page_id_t page_id) -> bool {
   auto it = page_table_.find(page_id);
   if (it == page_table_.end()) {
     return false;
   }
   auto fid = it->second;
   auto fptr = frames_[fid];
-  if (fptr->is_dirty_){
+  if (fptr->is_dirty_) {
     auto callback = disk_scheduler_->CreatePromise();
     auto result = callback.get_future();
 
     disk_scheduler_->Schedule(DiskRequest{
-      .is_write_=true,
-      .data_=fptr->GetDataMut(),
-      .page_id_=page_id,
-      .callback_=std::move(callback)
-    });
+        .is_write_ = true, .data_ = fptr->GetDataMut(), .page_id_ = page_id, .callback_ = std::move(callback)});
 
     BUSTUB_ENSURE(result.get(), "flush failed!");
-    fptr->is_dirty_=false;
+    fptr->is_dirty_ = false;
   }
   return true;
 }
@@ -463,12 +446,12 @@ auto BufferPoolManager::FlushPageUnsafe(page_id_t page_id) -> bool {
  * You should probably leave implementing this function until after you have completed `CheckedReadPage`,
  * `CheckedWritePage`, and `Flush` in the page guards, as it will likely be much easier to understand what to do.
  *
- * TODO(P1): Add implementation
+ *
  *
  * @param page_id The page ID of the page to be flushed.
  * @return `false` if the page could not be found in the page table, otherwise `true`.
  */
-auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { 
+auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
   auto rpg_opt = CheckedReadPage(page_id, AccessType::Unknown);
   if (rpg_opt.has_value()) {
     rpg_opt->Flush();
@@ -488,10 +471,10 @@ auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
  * You should probably leave implementing this function until after you have completed `CheckedReadPage`,
  * `CheckedWritePage`, and `FlushPage`, as it will likely be much easier to understand what to do.
  *
- * TODO(P1): Add implementation
+ *
  */
-void BufferPoolManager::FlushAllPagesUnsafe() { 
-  for(const auto [pid, fid] : page_table_) {
+void BufferPoolManager::FlushAllPagesUnsafe() {
+  for (const auto [pid, fid] : page_table_) {
     FlushPageUnsafe(pid);
   }
 }
@@ -506,9 +489,9 @@ void BufferPoolManager::FlushAllPagesUnsafe() {
  * You should probably leave implementing this function until after you have completed `CheckedReadPage`,
  * `CheckedWritePage`, and `FlushPage`, as it will likely be much easier to understand what to do.
  *
- * TODO(P1): Add implementation
+ *
  */
-void BufferPoolManager::FlushAllPages() { 
+void BufferPoolManager::FlushAllPages() {
   std::vector<std::shared_ptr<FrameHeader>> frames_to_flush;
   {
     std::scoped_lock bpm_lock(*bpm_latch_);
@@ -543,7 +526,6 @@ void BufferPoolManager::FlushAllPages() {
  * Again, if you are unfamiliar with atomic types, see the official C++ docs
  * [here](https://en.cppreference.com/w/cpp/atomic/atomic).
  *
- * TODO(P1): Add implementation
  *
  * @param page_id The page ID of the page we want to get the pin count of.
  * @return std::optional<size_t> The pin count if the page exists, otherwise `std::nullopt`.
@@ -561,19 +543,18 @@ auto BufferPoolManager::GetPinCount(page_id_t page_id) -> std::optional<size_t> 
 }
 
 /**
- * @brief 
- * A helper function that evict a page, unsafe, dont take any latch to avoid deadlock. If you want to use it under multithread case
- * use it with a block with proper latch acquired (i.e. bpm_latch and frame latch). 
- * 
+ * @brief
+ * A helper function that evict a page, unsafe, dont take any latch to avoid deadlock. If you want to use it under
+ * multithread case use it with a block with proper latch acquired (i.e. bpm_latch and frame latch).
+ *
  * A successful evict will find a frame to evict;
- * flush the content to disk if its dirty; 
- * erase the (pid, fid) pair in page_table_; 
+ * flush the content to disk if its dirty;
+ * erase the (pid, fid) pair in page_table_;
  * Reset() it;
  * and put frame_id back to free_frames_.
- * 
- * @return std::optional<frame_id_t> if evict that frame successful 
+ *
+ * @return std::optional<frame_id_t> if evict that frame successful
  */
-
 
 auto BufferPoolManager::EvictUnsafe() -> std::optional<frame_id_t> {
   auto fid_opt = replacer_->Evict();
@@ -593,29 +574,23 @@ auto BufferPoolManager::EvictUnsafe() -> std::optional<frame_id_t> {
     page_table_.erase(page_table_.find(fptr->page_id_.value()));
     fptr->Reset();
     free_frames_.push_front(fid);
-  } 
+  }
 
   return fid_opt;
 }
 
 /**
  * @brief load a page content from disk to a frame in memory;
- * 
- * @return true 
- * @return false 
+ *
+ * @return true
+ * @return false
  */
 auto BufferPoolManager::LoadPageFromDiskUnsafe(page_id_t page_id, frame_id_t frame_id) -> bool {
   auto callback = disk_scheduler_->CreatePromise();
   auto load_result = callback.get_future();
   auto frame = frames_.at(frame_id);
-  disk_scheduler_->Schedule(
-    DiskRequest{
-      .is_write_=false,
-      .data_=frame->GetDataMut(),
-      .page_id_=page_id,
-      .callback_=std::move(callback)
-    }
-  );
+  disk_scheduler_->Schedule(DiskRequest{
+      .is_write_ = false, .data_ = frame->GetDataMut(), .page_id_ = page_id, .callback_ = std::move(callback)});
   return load_result.get();
 }
 

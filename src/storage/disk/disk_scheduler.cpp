@@ -54,7 +54,7 @@ void DiskScheduler::Schedule(DiskRequest r) {
  */
 void DiskScheduler::StartWorkerThread() {
   while (true) {
-    auto request = request_queue_.Get(); // will wait til fullfilled
+    auto request = request_queue_.Get();  // will wait til fullfilled
     if (request.has_value()) {
       if (disk_manager_ != nullptr) {
         if (request->is_write_) {

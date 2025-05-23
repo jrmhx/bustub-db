@@ -19,15 +19,14 @@
 #include "common/exception.h"
 #include "common/macros.h"
 
-
 namespace bustub {
-LRUKNode::LRUKNode(size_t k, frame_id_t fid, size_t access_timestamp): k_(k), fid_(fid) {
+LRUKNode::LRUKNode(size_t k, frame_id_t fid, size_t access_timestamp) : k_(k), fid_(fid) {
   BUSTUB_ASSERT(k > 0, "k should be a positive value");
   history_ = std::deque<size_t>(k_, 0);
-  this->history_[k-1] = access_timestamp;
+  this->history_[k - 1] = access_timestamp;
 }
 
-void LRUKNode::Access(const size_t current_timestamp){
+void LRUKNode::Access(const size_t current_timestamp) {
   this->history_.push_back(current_timestamp);
   this->history_.pop_front();
 }
@@ -36,29 +35,19 @@ auto LRUKNode::GetKRecentAccessTime(const size_t current_timestamp) const -> siz
   BUSTUB_ASSERT(!this->history_.empty(), "history_ should never be empty");
   return this->history_.front();
 }
-auto LRUKNode::GetLastAccessTime() const -> size_t{
+auto LRUKNode::GetLastAccessTime() const -> size_t {
   BUSTUB_ASSERT(!this->history_.empty(), "history_ should never be empty");
   return this->history_.back();
 }
-auto LRUKNode::IsEvictable() const -> bool{
-  return this->is_evictable_;
-}
-void LRUKNode::SetIsEvictable(bool is_evictable){
-  this->is_evictable_ = is_evictable;
-}
+auto LRUKNode::IsEvictable() const -> bool { return this->is_evictable_; }
+void LRUKNode::SetIsEvictable(bool is_evictable) { this->is_evictable_ = is_evictable; }
 
-auto LRUKNode::GetFrameId() const -> frame_id_t {
-  return this->fid_;
-}
+auto LRUKNode::GetFrameId() const -> frame_id_t { return this->fid_; }
 
 // smaller lexicographical order of history_ means higher piority when selecting eviction victim
-auto LRUKNode::operator<(const LRUKNode& other) const -> bool {
-  return this->history_ < other.history_;
-}
+auto LRUKNode::operator<(const LRUKNode &other) const -> bool { return this->history_ < other.history_; }
 
-auto LRUKNode::operator==(const LRUKNode& other) const -> bool {
-  return this->fid_ == other.fid_;
-}
+auto LRUKNode::operator==(const LRUKNode &other) const -> bool { return this->fid_ == other.fid_; }
 
 /**
  * @brief a new LRUKReplacer.
@@ -80,11 +69,11 @@ LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_fra
  *
  * @return true if a frame is evicted successfully, false if no frames can be evicted.
  */
-auto LRUKReplacer::Evict() -> std::optional<frame_id_t> { 
+auto LRUKReplacer::Evict() -> std::optional<frame_id_t> {
   std::lock_guard guard(latch_);
   std::optional<frame_id_t> vict_fid = std::nullopt;
 
-  for (const auto& [fid, node] : node_store_){
+  for (const auto &[fid, node] : node_store_) {
     if (node.IsEvictable()) {
       if (vict_fid.has_value()) {
         if (node < node_store_.at(vict_fid.value())) {
@@ -100,9 +89,9 @@ auto LRUKReplacer::Evict() -> std::optional<frame_id_t> {
     const auto it = node_store_.find(vict_fid.value());
     if (it != node_store_.end()) {
       node_store_.erase(it);
-      curr_size_ --;
+      curr_size_--;
     }
-  } 
+  }
 
   return vict_fid;
 }
@@ -124,13 +113,13 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
   bool is_frameid_invalid = static_cast<size_t>(frame_id) >= replacer_size_;
   BUSTUB_ENSURE(!is_frameid_invalid, "frame_id is invalid!");
 
-  current_timestamp_ ++;
+  current_timestamp_++;
 
   const auto it = node_store_.find(frame_id);
   if (it == node_store_.end()) {
     node_store_.emplace(frame_id, LRUKNode(k_, frame_id, current_timestamp_));
   } else {
-    auto& node = it->second;
+    auto &node = it->second;
     node.Access(current_timestamp_);
   }
 }
@@ -158,17 +147,17 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   }
 
   auto it = node_store_.find(frame_id);
-  if (it != node_store_.end()){
+  if (it != node_store_.end()) {
     bool prev = it->second.IsEvictable();
     it->second.SetIsEvictable(set_evictable);
 
     if (prev) {
       if (!set_evictable) {
-        curr_size_ --;
+        curr_size_--;
       }
     } else {
       if (set_evictable) {
-        curr_size_ ++;
+        curr_size_++;
       }
     }
   }
@@ -197,7 +186,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   if (it != node_store_.end()) {
     if (it->second.IsEvictable()) {
       node_store_.erase(it);
-      curr_size_ --;
+      curr_size_--;
     } else {
       throw bustub::Exception("cannot remove a non-evictable frame!");
     }
@@ -210,7 +199,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
  *
  * @return size_t
  */
-auto LRUKReplacer::Size() -> size_t { 
+auto LRUKReplacer::Size() -> size_t {
   std::lock_guard guard(latch_);
   return curr_size_;
 }

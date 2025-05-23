@@ -116,7 +116,6 @@ class ReadPageGuard {
   bool is_valid_{false};
 
   /**
-   * TODO(P1): You may add any fields under here that you think are necessary.
    *
    * If you want extra (non-existent) style points, and you want to be extra fancy, then you can look into the
    * `std::shared_lock` type and use that for the latching mechanism instead of manually calling `lock` and `unlock`.
@@ -223,7 +222,7 @@ class WritePageGuard {
   bool is_valid_{false};
 
   /**
-   * TODO(P1): You may add any fields under here that you think are necessary.
+   *
    *
    * If you want extra (non-existent) style points, and you want to be extra fancy, then you can look into the
    * `std::unique_lock` type and use that for the latching mechanism instead of manually calling `lock` and `unlock`.
