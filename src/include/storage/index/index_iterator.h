@@ -51,7 +51,15 @@ class IndexIterator {
   }
 
   auto operator!=(const IndexIterator &itr) const -> bool { 
-    return !std::operator==(itr);
+    if (is_valid_ != itr.is_valid_) {
+      return true;
+    }
+
+    if (!is_valid_) {
+      return false;
+    }
+
+    return !(curr_leaf_page_ == itr.curr_leaf_page_ && curr_pos_ == itr.curr_pos_);
   }
 
  private:

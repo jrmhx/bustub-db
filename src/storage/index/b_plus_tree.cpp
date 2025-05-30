@@ -125,14 +125,13 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
       }
     }
 
-    const B_PLUS_TREE_INTERNAL_PAGE_TYPE* internal_page = rpg.As<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+    const BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* internal_page = rpg.As<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
     auto first_greater_key_index = internal_page->KeyUpperBound(key, comparator_);
     auto possible_pid_index = first_greater_key_index - 1;
     if (possible_pid_index < 0 || possible_pid_index >= internal_page->GetSize()) {
       return false;
     }
-    auto v = internal_page->ValueAt(possible_pid_index);
-    auto kid_pid = v.GetPageId();
+    auto kid_pid = internal_page->ValueAt(possible_pid_index);
     // add current page's read lock into read_set_ when searching its kids
     ctx.read_set_.push_back(std::move(rpg));
     return search(kid_pid);
@@ -201,12 +200,12 @@ auto BPLUSTREE_TYPE::getUpperBoundLocation(Context &ctx, const KeyType &key, con
       auto first_greater_key_index = leaf->KeyUpperBound(key, cmp);
       return std::make_optional(first_greater_key_index);
     } else {
-      auto page = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE*>(curr_page);
+      auto page = reinterpret_cast<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>*>(curr_page);
       auto first_greater_key_index = page->KeyUpperBound(key, cmp);
       auto possible_pid_index = first_greater_key_index - 1;
       if (possible_pid_index >= 0 && possible_pid_index < page->GetSize()) {
         auto kid_page_id = page->ValueAt(possible_pid_index);
-        ctx.write_set_.push_back(bpm_->WritePage(kid_page_id.GetPageId()));
+        ctx.write_set_.push_back(bpm_->WritePage(kid_page_id));
       } else {
         return std::nullopt;
       }
@@ -246,10 +245,10 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
     auto new_root_pid = bpm_->NewPage();
     BUSTUB_ASSERT(new_root_pid != INVALID_PAGE_ID, "unable to get a new page");
     auto new_root_wpg = bpm_->WritePage(new_root_pid);
-    B_PLUS_TREE_INTERNAL_PAGE_TYPE *new_root = new_root_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+    BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *new_root = new_root_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
     new_root->Init(internal_max_size_);
-    new_root->InsertAt(0, old_key, ValueType(left_pid, 0));
-    new_root->InsertAt(1, split_key, ValueType(right_pid, 0));
+    new_root->InsertAt(0, old_key, left_pid);
+    new_root->InsertAt(1, split_key, right_pid);
     auto &header_wpg = ctx.header_page_.value();
     auto header = header_wpg.AsMut<BPlusTreeHeaderPage>();
     header->root_page_id_ = new_root_pid;
@@ -280,7 +279,7 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
       std::memmove(
         new_leaf->GetRidArrayPtr(0),
         leaf->GetRidArrayPtr(split_index),
-        move_size * sizeof(ValueType)
+        move_size * sizeof(RID)
       );
 
       leaf->SetSize(split_index);
@@ -301,7 +300,7 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
         return create_new_root(old_key, new_key, old_pid, new_pid);
       } else {
         auto &parent_wpg = ctx.write_set_.back();
-        B_PLUS_TREE_INTERNAL_PAGE_TYPE* parent = parent_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+        BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
         auto first_greater_key_index = parent->KeyUpperBound(new_key, cmp);
         return insertAndSplit(ctx, first_greater_key_index, new_key, ValueType(new_pid, 0), cmp);
       }
@@ -311,13 +310,13 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
     }
   } else {
     // is internal
-    auto internal = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE*>(curr_page);
+    auto internal = reinterpret_cast<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>*>(curr_page);
     if (internal->GetSize() >= internal->GetMaxSize()){
       // need to split internal
       auto new_pid = bpm_->NewPage();
       BUSTUB_ASSERT(new_pid != INVALID_PAGE_ID, "unable to get a new page");
       auto new_wpg = bpm_->WritePage(new_pid);
-      B_PLUS_TREE_INTERNAL_PAGE_TYPE* new_internal = new_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+      BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* new_internal = new_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
       new_internal->Init(internal_max_size_);
       // page_id_size: [0, split_index-1] [split_index, max_size - 1]
       auto split_index = new_internal->GetMinSize();
@@ -331,7 +330,7 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
       std::memmove(
         new_internal->GetPageIdArrayPtr(0),
         internal->GetPageIdArrayPtr(split_index),
-        move_size * sizeof(ValueType)
+        move_size * sizeof(page_id_t)
       );
 
       internal->SetSize(split_index);
@@ -340,9 +339,9 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
       if (index >= split_index) {
         // the new kv pair should be inserted in the new_leaf
         index -= split_index;
-        new_internal->InsertAt(index, key, value);
+        new_internal->InsertAt(index, key, value.GetPageId());
       } else {
-        internal->InsertAt(index, key, value);
+        internal->InsertAt(index, key, value.GetPageId());
       }
       auto old_key = internal->KeyAt(0);
       auto new_key = new_internal->KeyAt(0);
@@ -352,12 +351,12 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
         return create_new_root(old_key, new_key, old_pid, new_pid);
       } else {
         auto &parent_wpg = ctx.write_set_.back();
-        B_PLUS_TREE_INTERNAL_PAGE_TYPE* parent = parent_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+        BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
         auto first_greater_key_index = parent->KeyUpperBound(new_key, cmp);
         return insertAndSplit(ctx, first_greater_key_index, new_key, ValueType(new_pid, 0), cmp);
       }
     } else {
-      return internal->InsertAt(index, key, value);
+      return internal->InsertAt(index, key, value.GetPageId());
     }
   }
 }
@@ -419,21 +418,20 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
   auto find_curr_sibling = [&](const page_id_t page_id) {
     std::optional<WritePageGuard> left = std::nullopt;
     std::optional<WritePageGuard> right = std::nullopt;
-    auto value = ValueType(page_id, 0);
 
     if (!ctx.write_set_.empty()) {
       auto &parent_wpg = ctx.write_set_.back();
-      const B_PLUS_TREE_INTERNAL_PAGE_TYPE* parent = parent_wpg.As<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
-      auto kid_index = parent->ValueIndex(value);
+      const BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.As<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
+      auto kid_index = parent->ValueIndex(page_id);
       curr_page_index_in_parent = std::make_optional(kid_index);
       auto left_index = kid_index - 1;
       auto right_index = kid_index + 1;
       if (left_index >= 0 && left_index < parent->GetSize()) {
-        auto left_pid = parent->ValueAt(left_index).GetPageId();
+        auto left_pid = parent->ValueAt(left_index);
         left = bpm_->CheckedWritePage(left_pid);
       }
       if (right_index >= 0 && right_index < parent->GetSize()) {
-        auto right_pid = parent->ValueAt(right_index).GetPageId();
+        auto right_pid = parent->ValueAt(right_index);
         right = bpm_->CheckedWritePage(right_pid);
       }
     }
@@ -462,7 +460,7 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
           curr_leaf->InsertAt(0, re_key, re_value);
           auto &parent_wpg = ctx.write_set_.back();
           BUSTUB_ASSERT(curr_page_index_in_parent.has_value(), "invalid index");
-          B_PLUS_TREE_INTERNAL_PAGE_TYPE* parent = parent_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+          BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
           parent->SetKeyAt(curr_page_index_in_parent.value(), re_key);
           return;
         } else if (left->GetSize() == left->GetMinSize()) {
@@ -497,7 +495,7 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
           curr_leaf->InsertAt(curr_leaf->GetSize(), re_key, re_value);
           auto &parent_wpg = ctx.write_set_.back();
           BUSTUB_ASSERT(curr_page_index_in_parent.has_value(), "invalid index");
-          B_PLUS_TREE_INTERNAL_PAGE_TYPE* parent = parent_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+          BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
           parent->SetKeyAt(curr_page_index_in_parent.value()+1, right->KeyAt(0));
           return;
         } else if (right->GetSize() == right->GetMinSize()) {
@@ -516,23 +514,23 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
           curr_leaf->ChangeSizeBy(right->GetSize());
           curr_leaf->SetNextPageId(right->GetNextPageId());
           auto &parent_wpg = ctx.write_set_.back();
-          B_PLUS_TREE_INTERNAL_PAGE_TYPE* parent = parent_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+          BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
           BUSTUB_ASSERT(curr_page_index_in_parent.has_value(), "invalid index");
-          bpm_->DeletePage(parent->ValueAt(curr_page_index_in_parent.value() + 1).GetPageId());
+          bpm_->DeletePage(parent->ValueAt(curr_page_index_in_parent.value() + 1));
           return removeAndBalance(ctx, curr_page_index_in_parent.value());
         }
       }
     }
   } else {
     // internal node
-    B_PLUS_TREE_INTERNAL_PAGE_TYPE* curr_internal = curr_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+    BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* curr_internal = curr_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
     
     curr_internal->DeleteAt(index);
     if (curr_pid == ctx.header_page_.value().GetPageId()) {
       if (curr_internal->GetSize() == 1) {
         auto &header_wpg = ctx.header_page_.value();
         auto header = header_wpg.AsMut<BPlusTreeHeaderPage>();
-        header->root_page_id_ = curr_internal->ValueAt(0).GetPageId();
+        header->root_page_id_ = curr_internal->ValueAt(0);
         return;
       }
     }
@@ -542,7 +540,7 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
       auto right_opt = std::move(siblings.second);
       if (left_opt.has_value()) {
         auto left_wpg = std::move(left_opt.value());
-        B_PLUS_TREE_INTERNAL_PAGE_TYPE* left = left_wpg.template AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+        BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* left = left_wpg.template AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
         if (left->GetSize() > left->GetMinSize()) {
           // redistribute from left to curr
           auto re_key = left->KeyAt(left->GetSize()-1);
@@ -551,7 +549,7 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
           curr_internal->InsertAt(0, re_key, re_value);
           auto &parent_wpg = ctx.write_set_.back();
           BUSTUB_ASSERT(curr_page_index_in_parent.has_value(), "invalid index");
-          B_PLUS_TREE_INTERNAL_PAGE_TYPE* parent = parent_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+          BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
           parent->SetKeyAt(curr_page_index_in_parent.value(), re_key);
           return;
         } else if (left->GetSize() == left->GetMinSize()) {
@@ -565,7 +563,7 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
           std::memmove(
             left->GetPageIdArrayPtr(left->GetSize()),
             curr_internal->GetPageIdArrayPtr(0),
-            curr_internal->GetSize() * sizeof(ValueType)
+            curr_internal->GetSize() * sizeof(page_id_t)
           );
           left->ChangeSizeBy(curr_internal->GetSize());
           bpm_->DeletePage(curr_pid);
@@ -576,7 +574,7 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
 
       if (right_opt.has_value()) {
         auto right_wpg = std::move(right_opt.value());
-        B_PLUS_TREE_INTERNAL_PAGE_TYPE* right = right_wpg.template AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+        BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* right = right_wpg.template AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
         if (right->GetSize() > right->GetMinSize()) {
           // redistribute from right to curr
           auto re_key = right->KeyAt(0);
@@ -585,7 +583,7 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
           curr_internal->InsertAt(curr_internal->GetSize(), re_key, re_value);
           auto &parent_wpg = ctx.write_set_.back();
           BUSTUB_ASSERT(curr_page_index_in_parent.has_value(), "invalid index");
-          B_PLUS_TREE_INTERNAL_PAGE_TYPE* parent = parent_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+          BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
           parent->SetKeyAt(curr_page_index_in_parent.value()+1, right->KeyAt(0));
           return;
         } else if (right->GetSize() == right->GetMinSize()) {
@@ -603,9 +601,9 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
           );
           curr_internal->ChangeSizeBy(right->GetSize());
           auto &parent_wpg = ctx.write_set_.back();
-          B_PLUS_TREE_INTERNAL_PAGE_TYPE* parent = parent_wpg.AsMut<B_PLUS_TREE_INTERNAL_PAGE_TYPE>();
+          BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
           BUSTUB_ASSERT(curr_page_index_in_parent.has_value(), "invalid index");
-          bpm_->DeletePage(parent->ValueAt(curr_page_index_in_parent.value() + 1).GetPageId());
+          bpm_->DeletePage(parent->ValueAt(curr_page_index_in_parent.value() + 1));
           return removeAndBalance(ctx, curr_page_index_in_parent.value());
         }
       }
@@ -684,9 +682,9 @@ auto BPLUSTREE_TYPE::getLeftMostLeafPageGuard() -> std::optional<ReadPageGuard> 
   auto curr_page = ctx.read_set_.back().As<BPlusTreePage>();
 
   while (!curr_page->IsLeafPage()) {
-    auto curr_interal = reinterpret_cast<const B_PLUS_TREE_INTERNAL_PAGE_TYPE*>(curr_page);
+    auto curr_interal = reinterpret_cast<const BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>*>(curr_page);
     BUSTUB_ASSERT(curr_interal->GetSize() >= 2, "internal node must has at least 2 kids");
-    auto kid_pid = curr_interal->ValueAt(0).GetPageId();
+    auto kid_pid = curr_interal->ValueAt(0);
     auto curr_rpg = bpm_->ReadPage(kid_pid);
     if (!curr_rpg.IsValid()) {
       return std::nullopt;
@@ -716,10 +714,10 @@ auto BPLUSTREE_TYPE::getLeftPageGuardByKey(const KeyType &key) -> std::optional<
   auto curr_page = ctx.read_set_.back().As<BPlusTreePage>();
 
   while (!curr_page->IsLeafPage()) {
-    auto curr_interal = reinterpret_cast<const B_PLUS_TREE_INTERNAL_PAGE_TYPE*>(curr_page);
+    auto curr_interal = reinterpret_cast<const BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>*>(curr_page);
     BUSTUB_ASSERT(curr_interal->GetSize() >= 2, "internal node must has at least 2 kids");
     auto possible_key_index = curr_interal->KeyUpperBound(key, comparator_) - 1;
-    auto kid_pid = curr_interal->ValueAt(possible_key_index).GetPageId();
+    auto kid_pid = curr_interal->ValueAt(possible_key_index);
     auto curr_rpg = bpm_->ReadPage(kid_pid);
     if (!curr_rpg.IsValid()) {
       return std::nullopt;
