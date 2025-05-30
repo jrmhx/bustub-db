@@ -66,13 +66,13 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, page_id_t header_page_id, BufferPool
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::IsEmpty() const -> bool {  
   auto header_rpg = bpm_->ReadPage(header_page_id_);
-  auto header_pg = header_rpg.As<BPlusTreeHeaderPage>();
+  auto header_pg = header_rpg.template As<BPlusTreeHeaderPage>();
   if(header_pg->root_page_id_ == INVALID_PAGE_ID) {
     return true;
   }
 
   auto root_rpg = bpm_->ReadPage(header_pg->root_page_id_);
-  auto root_pg = root_rpg.As<BPlusTreePage>();
+  auto root_pg = root_rpg.template As<BPlusTreePage>();
 
   return root_pg->IsLeafPage() && root_pg->GetSize() == 0;
 }
@@ -97,7 +97,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   }
   Context ctx;
   auto header_rpg = bpm_->ReadPage(header_page_id_);
-  auto header = header_rpg.As<BPlusTreeHeaderPage>();
+  auto header = header_rpg.template As<BPlusTreeHeaderPage>();
 
   std::function<bool(page_id_t)> search = [&](page_id_t page_id) -> bool {
     if (page_id == INVALID_PAGE_ID) {
@@ -664,7 +664,7 @@ auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { 
   auto header_rpg = bpm_->ReadPage(header_page_id_);
-  auto header = header_rpg.As<BPlusTreeHeaderPage>();
+  auto header = header_rpg.template As<BPlusTreeHeaderPage>();
   return header->root_page_id_;
 }
 
