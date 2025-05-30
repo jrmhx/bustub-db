@@ -16,7 +16,9 @@
  */
 #pragma once
 #include <utility>
+#include "buffer/buffer_pool_manager.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
+#include "storage/page/page_guard.h"
 
 namespace bustub {
 
@@ -28,6 +30,7 @@ class IndexIterator {
   // you may define your own constructor based on your member variables
   IndexIterator();
   ~IndexIterator();  // NOLINT
+  IndexIterator(BufferPoolManager *bpm, ReadPageGuard rpg, int pos);
 
   auto IsEnd() -> bool;
 
@@ -35,12 +38,30 @@ class IndexIterator {
 
   auto operator++() -> IndexIterator &;
 
-  auto operator==(const IndexIterator &itr) const -> bool { UNIMPLEMENTED("TODO(P2): Add implementation."); }
+  auto operator==(const IndexIterator &itr) const -> bool { 
+    if (is_valid_ != itr.is_valid_) {
+      return false;
+    }
 
-  auto operator!=(const IndexIterator &itr) const -> bool { UNIMPLEMENTED("TODO(P2): Add implementation."); }
+    if (!is_valid_) {
+      return true;
+    }
+
+    return curr_leaf_page_ == itr.curr_leaf_page_ && curr_pos_ == itr.curr_pos_;
+  }
+
+  auto operator!=(const IndexIterator &itr) const -> bool { 
+    return !std::operator==(itr);
+  }
 
  private:
   // add your own private member variables here
+
+  BufferPoolManager *bpm_{nullptr};
+  ReadPageGuard rpg_;
+  const B_PLUS_TREE_LEAF_PAGE_TYPE* curr_leaf_page_{nullptr};
+  int curr_pos_{0};
+  bool is_valid_{false};
 };
 
 }  // namespace bustub

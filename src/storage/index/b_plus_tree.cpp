@@ -30,6 +30,7 @@
 #include "common/macros.h"
 #include "common/rid.h"
 #include "storage/index/b_plus_tree_debug.h"
+#include "storage/index/index_iterator.h"
 #include "storage/page/b_plus_tree_header_page.h"
 #include "storage/page/b_plus_tree_internal_page.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
@@ -399,7 +400,9 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
     return;
   }
   // recursively remove and balance
-  return removeAndBalance(ctx, possible_key_index);
+  removeAndBalance(ctx, possible_key_index);
+  ctx.header_page_ = std::nullopt;
+  return;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -639,7 +642,7 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE { UNIMPLEME
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { UNIMPLEMENTED("TODO(P2): Add implementation."); }
+auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
 
 /**
  * @return Page id of the root of this tree
@@ -647,7 +650,11 @@ auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { UNIMPLEMENTED("TODO(P2): Add 
  * You may want to implement this while implementing Task #3.
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { UNIMPLEMENTED("TODO(P2): Add implementation."); }
+auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { 
+  auto header_rpg = bpm_->ReadPage(header_page_id_);
+  auto header = header_rpg.As<BPlusTreeHeaderPage>();
+  return header->root_page_id_;
+}
 
 template class BPlusTree<GenericKey<4>, RID, GenericComparator<4>>;
 
