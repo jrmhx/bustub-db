@@ -20,8 +20,6 @@
 #include <vector>
 #include "buffer/lru_k_replacer.h"
 #include "common/config.h"
-#include "common/exception.h"
-#include "common/macros.h"
 #include "storage/disk/disk_scheduler.h"
 #include "storage/page/page_guard.h"
 
@@ -267,7 +265,13 @@ auto BufferPoolManager::CheckedWritePage(page_id_t page_id, AccessType access_ty
       page_table_[page_id] = fid_opt.value();
       // load the page from disk to frame
       auto load_result = LoadPageFromDiskUnsafe(page_id, fid_opt.value());
-      BUSTUB_ENSURE(load_result, "I/O Error, unable to load page from disk");
+      if (!load_result) {
+        // disk I/O failed, rollback
+        free_fptr->Reset();
+        free_frames_.push_back(free_fptr->frame_id_);
+        page_table_.erase(page_id);
+        return std::nullopt;
+      }
       replacer_->RecordAccess(fid_opt.value());
     }
     if (fid_opt.has_value()) {
@@ -342,7 +346,13 @@ auto BufferPoolManager::CheckedReadPage(page_id_t page_id, AccessType access_typ
       page_table_[page_id] = fid_opt.value();
       // load the page from disk to frame
       auto load_result = LoadPageFromDiskUnsafe(page_id, fid_opt.value());
-      BUSTUB_ENSURE(load_result, "I/O Error, unable to load page from disk");
+      if (!load_result) {
+        // disk I/O failed, rollback
+        free_fptr->Reset();
+        free_frames_.push_back(free_fptr->frame_id_);
+        page_table_.erase(page_id);
+        return std::nullopt;
+      }
       replacer_->RecordAccess(fid_opt.value());
     }
     if (fid_opt.has_value()) {
@@ -593,7 +603,10 @@ auto BufferPoolManager::EvictUnsafe() -> std::optional<frame_id_t> {
     auto fid = fid_opt.value();
     auto fptr = frames_[fid];
     std::scoped_lock frame_lock(fptr->rwlatch_);
-    BUSTUB_ENSURE(fptr->page_id_.has_value(), "Error, try to flush or evict a ghost frame!");
+    if (!fptr->page_id_.has_value()) {
+      // the frame is a ghost frame!
+      return std::nullopt;
+    }
     if (fptr->is_dirty_.load()) {
       auto flush_result = FlushPageUnsafe(fptr->page_id_.value());
       if (!flush_result) {

@@ -58,16 +58,13 @@ class BPlusTreePage {
   void SetMaxSize(int max_size);
   auto GetMinSize() const -> int;
 
-  /*
-   * TODO(P2): Remove __attribute__((__unused__)) if you intend to use the fields.
-   */
  private:
   // Member variables, attributes that both internal and leaf page share
-  IndexPageType page_type_ __attribute__((__unused__));
+  IndexPageType page_type_;
   // Number of key & value pairs in a page
-  int size_ __attribute__((__unused__));
+  int size_;
   // Max number of key & value pairs in a page
-  int max_size_ __attribute__((__unused__));
+  int max_size_;
 };
 
 }  // namespace bustub

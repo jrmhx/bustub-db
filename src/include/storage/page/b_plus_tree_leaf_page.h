@@ -34,10 +34,10 @@ namespace bustub {
  * | HEADER |
  *  ---------
  *  ---------------------------------
- * | KEY(1) | KEY(2) | ... | KEY(n) |
+ * | KEY(0) | KEY(2) | ... | KEY(n-1) |
  *  ---------------------------------
  *  ---------------------------------
- * | RID(1) | RID(2) | ... | RID(n) |
+ * | RID(0) | RID(2) | ... | RID(n-1) |
  *  ---------------------------------
  *
  *  Header format (size in byte, 16 bytes in total):
@@ -61,6 +61,14 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto GetNextPageId() const -> page_id_t;
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
+  auto ValueAt(int index) const -> ValueType;
+  auto InsertAt(int index, const KeyType &key, const ValueType &value) -> bool;
+  auto DeleteAt(int index) -> bool;
+  auto GetKeyArrayPtr(int offset) -> void*;
+  auto GetRidArrayPtr(int offset) -> void*;
+
+  // helper function that return the first index of key in a leaf that is greater than given key
+  auto KeyUpperBound(const KeyType &target, const KeyComparator &cmp) const -> int;
 
   /**
    * @brief For test only return a string representing all keys in

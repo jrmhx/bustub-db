@@ -25,11 +25,11 @@ namespace bustub {
   ((BUSTUB_PAGE_SIZE - INTERNAL_PAGE_HEADER_SIZE) / ((int)(sizeof(KeyType) + sizeof(ValueType))))  // NOLINT
 
 /**
- * Store `n` indexed keys and `n + 1` child pointers (page_id) within internal page.
+ * Store `n-1` indexed keys and `n` child pointers (page_id) within internal page.
  * Pointer PAGE_ID(i) points to a subtree in which all keys K satisfy:
  * K(i) <= K < K(i+1).
  * NOTE: Since the number of keys does not equal to number of child pointers,
- * the first key in key_array_ always remains invalid. That is to say, any search / lookup
+ * the first key in key_array_ always remains **invalid**. That is to say, any search / lookup
  * should ignore the first key.
  *
  * Internal page format (keys are stored in increasing order):
@@ -37,10 +37,10 @@ namespace bustub {
  * | HEADER |
  *  ---------
  *  ------------------------------------------
- * | KEY(1)(INVALID) | KEY(2) | ... | KEY(n) |
+ * | KEY(0)(INVALID) | KEY(1) | ... | KEY(n-1) |
  *  ------------------------------------------
  *  ---------------------------------------------
- * | PAGE_ID(1) | PAGE_ID(2) | ... | PAGE_ID(n) |
+ * | PAGE_ID(0) | PAGE_ID(1) | ... | PAGE_ID(n-1) |
  *  ---------------------------------------------
  */
 INDEX_TEMPLATE_ARGUMENTS
@@ -63,6 +63,18 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto ValueIndex(const ValueType &value) const -> int;
 
   auto ValueAt(int index) const -> ValueType;
+
+  auto SetValueAt(int page_index, const ValueType &value) -> void;
+
+  auto InsertAt(int index, const KeyType &key, const ValueType &value) -> bool;
+
+  auto DeleteAt(int index) -> bool;
+
+  auto GetKeyArrayPtr(int offset) -> void*;
+
+  auto GetPageIdArrayPtr(int offset) -> void*;
+
+  auto KeyUpperBound(const KeyType &target, const KeyComparator &cmp) const -> int;
 
   /**
    * @brief For test only, return a string representing all keys in

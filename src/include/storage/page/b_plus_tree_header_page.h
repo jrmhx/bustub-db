@@ -26,6 +26,15 @@ class BPlusTreeHeaderPage {
   BPlusTreeHeaderPage() = delete;
   BPlusTreeHeaderPage(const BPlusTreeHeaderPage &other) = delete;
 
+  // auto GetRootPageId() const -> page_id_t {
+  //   return root_page_id_;
+  // }
+
+  // auto SetRootPageId(const page_id_t rpid) -> void {
+  //   root_page_id_ = rpid;
+  // }
+
+//  private:
   page_id_t root_page_id_;
 };
 

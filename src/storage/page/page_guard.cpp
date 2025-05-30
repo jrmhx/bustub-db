@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "storage/page/page_guard.h"
-#include <cstddef>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -150,8 +149,9 @@ void ReadPageGuard::Flush() {
       .is_write_ = true, .data_ = frame_->GetDataMut(), .page_id_ = GetPageId(), .callback_ = std::move(callbk)});
 
   auto ok = flush_result.get();
-  BUSTUB_ENSURE(ok, "flush page into disk failed");
-  frame_->is_dirty_.store(false);
+  if (ok) {
+    frame_->is_dirty_.store(false);
+  }
 }
 
 /**

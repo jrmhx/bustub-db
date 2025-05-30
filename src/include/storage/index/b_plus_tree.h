@@ -124,6 +124,10 @@ class BPlusTree {
 
   auto ToPrintableBPlusTree(page_id_t root_id) -> PrintableBPlusTree;
 
+  auto getInsertLocation(Context &ctx, const KeyType &key, const KeyComparator &cmp) -> std::optional<int>;
+
+  auto insertAndSplit(Context &ctx, int index, const KeyType &key, const ValueType &value, const KeyComparator &cmp) -> bool;
+
   // member variable
   std::string index_name_;
   BufferPoolManager *bpm_;
