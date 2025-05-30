@@ -130,6 +130,10 @@ class BPlusTree {
 
   auto removeAndBalance(Context &ctx, int index) -> void;
 
+  auto getLeftMostLeafPageGuard() -> std::optional<ReadPageGuard>;
+
+  auto getLeftPageGuardByKey(const KeyType &key) -> std::optional<std::pair<ReadPageGuard, int>>;
+
   // member variable
   std::string index_name_;
   BufferPoolManager *bpm_;

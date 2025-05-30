@@ -134,7 +134,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
     auto v = internal_page->ValueAt(possible_pid_index);
     auto kid_pid = v.GetPageId();
     // add current page's read lock into read_set_ when searching its kids
-    ctx.read_set_.push_back(rpg);
+    ctx.read_set_.push_back(std::move(rpg));
     return search(kid_pid);
   };
 
@@ -206,8 +206,7 @@ auto BPLUSTREE_TYPE::getUpperBoundLocation(Context &ctx, const KeyType &key, con
       auto possible_pid_index = first_greater_key_index - 1;
       if (possible_pid_index >= 0 && possible_pid_index < page->GetSize()) {
         auto kid_page_id = page->ValueAt(possible_pid_index);
-        auto kid_wpg = bpm_->WritePage(kid_page_id.GetPageId());
-        ctx.write_set_.push_back(kid_wpg);
+        ctx.write_set_.push_back(bpm_->WritePage(kid_page_id.GetPageId()));
       } else {
         return std::nullopt;
       }
@@ -626,7 +625,14 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE { UNIMPLEMENTED("TODO(P2): Add implementation."); }
+auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE { 
+  auto rpg_opt = getLeftMostLeafPageGuard();
+  if (!rpg_opt.has_value()) {
+    return INDEXITERATOR_TYPE();
+  }
+
+  return {bpm_, std::move(rpg_opt.value()), 0};
+}
 
 /**
  * @brief Input parameter is low key, find the leaf page that contains the input key
@@ -634,7 +640,15 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE { UNIMPLEMENTED("TODO(P2): Ad
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE { UNIMPLEMENTED("TODO(P2): Add implementation."); }
+auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {  
+  auto page_info = getLeftPageGuardByKey(key);
+
+  if (!page_info.has_value()) {
+    return INDEXITERATOR_TYPE();
+  }
+
+  return {bpm_, std::move(page_info.value().first), page_info.value().second};
+}
 
 /**
  * @brief Input parameter is void, construct an index iterator representing the end
@@ -654,6 +668,76 @@ auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t {
   auto header_rpg = bpm_->ReadPage(header_page_id_);
   auto header = header_rpg.As<BPlusTreeHeaderPage>();
   return header->root_page_id_;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::getLeftMostLeafPageGuard() -> std::optional<ReadPageGuard> {
+  if (IsEmpty()) {
+    return std::nullopt;
+  }
+
+  Context ctx;
+  ctx.read_set_.push_back(bpm_->ReadPage(header_page_id_));
+  auto header = ctx.read_set_.back().As<BPlusTreeHeaderPage>();
+  ctx.root_page_id_ = header->root_page_id_;
+  ctx.read_set_.push_back(bpm_->ReadPage(ctx.root_page_id_));
+  auto curr_page = ctx.read_set_.back().As<BPlusTreePage>();
+
+  while (!curr_page->IsLeafPage()) {
+    auto curr_interal = reinterpret_cast<const B_PLUS_TREE_INTERNAL_PAGE_TYPE*>(curr_page);
+    BUSTUB_ASSERT(curr_interal->GetSize() >= 2, "internal node must has at least 2 kids");
+    auto kid_pid = curr_interal->ValueAt(0).GetPageId();
+    auto curr_rpg = bpm_->ReadPage(kid_pid);
+    if (!curr_rpg.IsValid()) {
+      return std::nullopt;
+    }
+    ctx.read_set_.push_back(std::move(curr_rpg));
+    curr_page = ctx.read_set_.back().template As<BPlusTreePage>();
+  }
+
+  if(curr_page->IsLeafPage()) {
+    return std::make_optional(std::move(ctx.read_set_.back()));
+  }
+
+  return std::nullopt;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::getLeftPageGuardByKey(const KeyType &key) -> std::optional<std::pair<ReadPageGuard, int>>{
+  if (IsEmpty()) {
+    return std::nullopt;
+  }
+
+  Context ctx;
+  ctx.read_set_.push_back(bpm_->ReadPage(header_page_id_));
+  auto header = ctx.read_set_.back().As<BPlusTreeHeaderPage>();
+  ctx.root_page_id_ = header->root_page_id_;
+  ctx.read_set_.push_back(bpm_->ReadPage(ctx.root_page_id_));
+  auto curr_page = ctx.read_set_.back().As<BPlusTreePage>();
+
+  while (!curr_page->IsLeafPage()) {
+    auto curr_interal = reinterpret_cast<const B_PLUS_TREE_INTERNAL_PAGE_TYPE*>(curr_page);
+    BUSTUB_ASSERT(curr_interal->GetSize() >= 2, "internal node must has at least 2 kids");
+    auto possible_key_index = curr_interal->KeyUpperBound(key, comparator_) - 1;
+    auto kid_pid = curr_interal->ValueAt(possible_key_index).GetPageId();
+    auto curr_rpg = bpm_->ReadPage(kid_pid);
+    if (!curr_rpg.IsValid()) {
+      return std::nullopt;
+    }
+    ctx.read_set_.push_back(std::move(curr_rpg));
+    curr_page = ctx.read_set_.back().template As<BPlusTreePage>();
+  }
+
+  if(curr_page->IsLeafPage()) {
+    auto curr_leaf = reinterpret_cast<const B_PLUS_TREE_LEAF_PAGE_TYPE*>(curr_page);
+    auto first_greater_key_index = curr_leaf->KeyUpperBound(key, comparator_);
+    auto possible_key_index = first_greater_key_index - 1;
+    if (comparator_(curr_leaf->KeyAt(possible_key_index), key) == 0) {
+      return std::make_optional(std::make_pair(std::move(ctx.read_set_.back()), possible_key_index));
+    }
+  }
+
+  return std::nullopt;
 }
 
 template class BPlusTree<GenericKey<4>, RID, GenericComparator<4>>;
