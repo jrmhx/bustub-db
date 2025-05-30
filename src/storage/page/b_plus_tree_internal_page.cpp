@@ -136,7 +136,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertAt(int index, const KeyType &key, con
 
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteAt(int index) -> bool {
-  if(index <= 0 || index >= GetSize()) {
+  if(index < 0 || index >= GetSize()) {
     return false;
   }
   auto size = GetSize();
