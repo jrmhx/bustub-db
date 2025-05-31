@@ -186,7 +186,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyUpperBound(const KeyType &target, const 
 
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetKeyArrayPtr(int offset) -> void* {
-  if (offset >= 1 && offset < GetMaxSize()) {
+  if (offset >= 0 && offset < GetMaxSize()) {
     // the valid key idx in internal node start from 1
     return reinterpret_cast<void*>(&key_array_[offset]);
   }

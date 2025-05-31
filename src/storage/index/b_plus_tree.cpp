@@ -285,7 +285,7 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
       leaf->SetSize(split_index);
       new_leaf->SetSize(move_size);
 
-      if (index >= split_index) {
+      if (index > split_index) {
         // the new kv pair should be inserted in the new_leaf
         index -= split_index;
         new_leaf->InsertAt(index, key, value);
@@ -301,6 +301,8 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
       } else {
         auto &parent_wpg = ctx.write_set_.back();
         BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
+        auto old_index = parent->ValueIndex(old_pid);
+        parent->SetKeyAt(old_index, old_key);
         auto first_greater_key_index = parent->KeyUpperBound(new_key, cmp);
         return insertAndSplit(ctx, first_greater_key_index, new_key, ValueType(new_pid, 0), cmp);
       }
@@ -336,7 +338,7 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
       internal->SetSize(split_index);
       new_internal->SetSize(move_size);
 
-      if (index >= split_index) {
+      if (index > split_index) {
         // the new kv pair should be inserted in the new_leaf
         index -= split_index;
         new_internal->InsertAt(index, key, value.GetPageId());
@@ -352,6 +354,8 @@ auto BPLUSTREE_TYPE::insertAndSplit(Context &ctx, int index, const KeyType &key,
       } else {
         auto &parent_wpg = ctx.write_set_.back();
         BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* parent = parent_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
+        auto old_index = parent->ValueIndex(old_pid);
+        parent->SetKeyAt(old_index, old_key);
         auto first_greater_key_index = parent->KeyUpperBound(new_key, cmp);
         return insertAndSplit(ctx, first_greater_key_index, new_key, ValueType(new_pid, 0), cmp);
       }

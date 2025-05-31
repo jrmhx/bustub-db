@@ -38,8 +38,8 @@ INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::IndexIterator(BufferPoolManager *bpm, ReadPageGuard rpg, int pos) 
 : bpm_(bpm), rpg_(std::move(rpg)), curr_pos_(pos) {
   if(bpm_ != nullptr) {
-    if (rpg.IsValid()) {
-      curr_leaf_page_ = rpg.As<B_PLUS_TREE_LEAF_PAGE_TYPE>();
+    if (rpg_.IsValid()) {
+      curr_leaf_page_ = rpg_.As<B_PLUS_TREE_LEAF_PAGE_TYPE>();
       is_valid_ = true;
     }
   }
