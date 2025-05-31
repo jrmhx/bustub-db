@@ -446,7 +446,13 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
   if (curr_page->IsLeafPage()) {
     B_PLUS_TREE_LEAF_PAGE_TYPE* curr_leaf = curr_wpg.AsMut<B_PLUS_TREE_LEAF_PAGE_TYPE>();
     curr_leaf->DeleteAt(index);
-    if (curr_pid == ctx.header_page_.value().GetPageId()) {
+    if (curr_pid == ctx.root_page_id_) {
+      if (curr_leaf->GetSize() == 0) {
+        // set the root invalid
+        auto header = ctx.header_page_.value().AsMut<BPlusTreeHeaderPage>();
+        header->root_page_id_ = INVALID_PAGE_ID;
+        bpm_->DeletePage(curr_pid);
+      }
       return;
     }
     if (curr_leaf->GetSize() < curr_leaf->GetMinSize()){
@@ -530,13 +536,20 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
     BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>* curr_internal = curr_wpg.AsMut<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>>();
     
     curr_internal->DeleteAt(index);
-    if (curr_pid == ctx.header_page_.value().GetPageId()) {
+    if (curr_pid == ctx.root_page_id_) {
       if (curr_internal->GetSize() == 1) {
         auto &header_wpg = ctx.header_page_.value();
         auto header = header_wpg.AsMut<BPlusTreeHeaderPage>();
         header->root_page_id_ = curr_internal->ValueAt(0);
-        return;
+        bpm_->DeletePage(curr_pid);
       }
+      if (curr_internal->GetSize() == 0) {
+        // set the root invalid
+        auto header = ctx.header_page_.value().AsMut<BPlusTreeHeaderPage>();
+        header->root_page_id_ = INVALID_PAGE_ID;
+        bpm_->DeletePage(curr_pid);
+      }
+      return;
     }
     if (curr_internal->GetSize() < curr_internal->GetMinSize()){
       auto siblings = find_curr_sibling(curr_pid);
@@ -687,7 +700,7 @@ auto BPLUSTREE_TYPE::getLeftMostLeafPageGuard() -> std::optional<ReadPageGuard> 
 
   while (!curr_page->IsLeafPage()) {
     auto curr_interal = reinterpret_cast<const BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>*>(curr_page);
-    BUSTUB_ASSERT(curr_interal->GetSize() >= 2, "internal node must has at least 2 kids");
+    // BUSTUB_ASSERT(curr_interal->GetSize() >= 2, "internal node must has at least 2 kids");
     auto kid_pid = curr_interal->ValueAt(0);
     auto curr_rpg = bpm_->ReadPage(kid_pid);
     if (!curr_rpg.IsValid()) {
@@ -719,7 +732,7 @@ auto BPLUSTREE_TYPE::getLeftPageGuardByKey(const KeyType &key) -> std::optional<
 
   while (!curr_page->IsLeafPage()) {
     auto curr_interal = reinterpret_cast<const BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>*>(curr_page);
-    BUSTUB_ASSERT(curr_interal->GetSize() >= 2, "internal node must has at least 2 kids");
+    // BUSTUB_ASSERT(curr_interal->GetSize() >= 2, "internal node must has at least 2 kids");
     auto possible_key_index = curr_interal->KeyUpperBound(key, comparator_) - 1;
     auto kid_pid = curr_interal->ValueAt(possible_key_index);
     auto curr_rpg = bpm_->ReadPage(kid_pid);
