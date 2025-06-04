@@ -69,8 +69,9 @@ class LRUKReplacer {
   DISALLOW_COPY_AND_MOVE(LRUKReplacer);
 
   /**
-   * TODO(P1): Add implementation
    *
+   * No manual cleanup needed since all members are self-managed.
+   * If you add raw pointers or manual allocations, release them here.
    * @brief Destroys the LRUReplacer.
    */
   ~LRUKReplacer() = default;
