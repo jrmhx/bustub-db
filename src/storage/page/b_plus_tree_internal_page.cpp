@@ -16,8 +16,8 @@
 
 #include "common/config.h"
 #include "common/exception.h"
-#include "storage/page/b_plus_tree_page.h"
 #include "storage/page/b_plus_tree_internal_page.h"
+#include "storage/page/b_plus_tree_page.h"
 
 namespace bustub {
 /*****************************************************************************
@@ -37,9 +37,9 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) {
   SetPageType(IndexPageType::INTERNAL_PAGE);
   SetMaxSize(max_size);
-  SetSize(0); // the size is for the number of kids page
+  SetSize(0);  // the size is for the number of kids page
   // set all page_id_array_[i] to INVALID_PAGE_ID
-  // std::memset(page_id_array_, 0xFF, max_size * sizeof(page_id_t)); 
+  // std::memset(page_id_array_, 0xFF, max_size * sizeof(page_id_t));
 }
 
 /**
@@ -88,7 +88,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const -> int{
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const -> int {
   int size = GetSize();
   for (int i = 0; i < size; i++) {
     if (page_id_array_[i] == value) {
@@ -109,7 +109,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int page_index, const ValueType 
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertAt(int index, const KeyType &key, const ValueType &value) -> bool{
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertAt(int index, const KeyType &key, const ValueType &value) -> bool {
   if (GetSize() >= GetMaxSize() || index < 0 || index > GetSize() || index >= GetMaxSize()) {
     // when insert kv pair into a internal, the index should be in the valid key index range [1, size]
     return false;
@@ -117,16 +117,10 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertAt(int index, const KeyType &key, con
   auto size = GetSize();
   if (index != size) {
     // shift the array if insertion pos is in the middle
-    std::memmove(
-      reinterpret_cast<void*>(&key_array_[index + 1]),
-      reinterpret_cast<void*>(&key_array_[index]),
-      (size - index) * sizeof(KeyType)
-    );
-    std::memmove(
-      reinterpret_cast<void*>(&page_id_array_[index + 1]),
-      reinterpret_cast<void*>(&page_id_array_[index]),
-      (size - index) * sizeof(ValueType)
-    );
+    std::memmove(reinterpret_cast<void *>(&key_array_[index + 1]), reinterpret_cast<void *>(&key_array_[index]),
+                 (size - index) * sizeof(KeyType));
+    std::memmove(reinterpret_cast<void *>(&page_id_array_[index + 1]), reinterpret_cast<void *>(&page_id_array_[index]),
+                 (size - index) * sizeof(ValueType));
   }
   key_array_[index] = key;
   page_id_array_[index] = value;
@@ -136,20 +130,14 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertAt(int index, const KeyType &key, con
 
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteAt(int index) -> bool {
-  if(index < 0 || index >= GetSize()) {
+  if (index < 0 || index >= GetSize()) {
     return false;
   }
   auto size = GetSize();
-  std::memmove(
-      reinterpret_cast<void*>(&key_array_[index]),
-      reinterpret_cast<void*>(&key_array_[index + 1]),
-      (size - index - 1) * sizeof(KeyType)
-    );
-  std::memmove(
-    reinterpret_cast<void*>(&page_id_array_[index]),
-    reinterpret_cast<void*>(&page_id_array_[index + 1]),
-    (size - index - 1) * sizeof(ValueType)
-  );
+  std::memmove(reinterpret_cast<void *>(&key_array_[index]), reinterpret_cast<void *>(&key_array_[index + 1]),
+               (size - index - 1) * sizeof(KeyType));
+  std::memmove(reinterpret_cast<void *>(&page_id_array_[index]), reinterpret_cast<void *>(&page_id_array_[index + 1]),
+               (size - index - 1) * sizeof(ValueType));
 
   ChangeSizeBy(-1);
 
@@ -159,7 +147,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteAt(int index) -> bool {
 /**
  * @brief Binary search, duplicate elements(actually non-duplicated but doesnt matter), right-most inser point
  * similar to std::upperbound
- * 
+ *
  * @param target target key to search
  * @param cmp comparator for key type
  * @return return the first index of key in a leaf that is greater than given key. return size if not found.
@@ -173,8 +161,8 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyUpperBound(const KeyType &target, const 
   while (left < right) {
     int mid = left + (right - left) / 2;
     auto key = KeyAt(mid);
-    
-    if ( cmp(key, target) > 0) {
+
+    if (cmp(key, target) > 0) {
       right = mid;
     } else {
       left = mid + 1;
@@ -185,18 +173,18 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyUpperBound(const KeyType &target, const 
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetKeyArrayPtr(int offset) -> void* {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetKeyArrayPtr(int offset) -> void * {
   if (offset >= 0 && offset < GetMaxSize()) {
     // the valid key idx in internal node start from 1
-    return reinterpret_cast<void*>(&key_array_[offset]);
+    return reinterpret_cast<void *>(&key_array_[offset]);
   }
   return nullptr;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetPageIdArrayPtr(int offset) -> void* {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetPageIdArrayPtr(int offset) -> void * {
   if (offset >= 0 && offset < GetMaxSize()) {
-    return reinterpret_cast<void*>(&page_id_array_[offset]);
+    return reinterpret_cast<void *>(&page_id_array_[offset]);
   }
   return nullptr;
 }

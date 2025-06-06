@@ -19,7 +19,7 @@
 
 namespace bustub {
 
-#define B_PLUS_TREE_INTERNAL_PAGE_TYPE BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>
+#define B_PLUS_TREE_INTERNAL_PAGE_TYPE BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>  // NOLINT
 #define INTERNAL_PAGE_HEADER_SIZE 12
 #define INTERNAL_PAGE_SLOT_CNT \
   ((BUSTUB_PAGE_SIZE - INTERNAL_PAGE_HEADER_SIZE) / ((int)(sizeof(KeyType) + sizeof(ValueType))))  // NOLINT
@@ -70,9 +70,9 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
   auto DeleteAt(int index) -> bool;
 
-  auto GetKeyArrayPtr(int offset) -> void*;
+  auto GetKeyArrayPtr(int offset) -> void *;
 
-  auto GetPageIdArrayPtr(int offset) -> void*;
+  auto GetPageIdArrayPtr(int offset) -> void *;
 
   auto KeyUpperBound(const KeyType &target, const KeyComparator &cmp) const -> int;
 

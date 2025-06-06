@@ -20,7 +20,7 @@
 
 namespace bustub {
 
-#define B_PLUS_TREE_LEAF_PAGE_TYPE BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>
+#define B_PLUS_TREE_LEAF_PAGE_TYPE BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>  // NOLINT
 #define LEAF_PAGE_HEADER_SIZE 16
 #define LEAF_PAGE_SLOT_CNT ((BUSTUB_PAGE_SIZE - LEAF_PAGE_HEADER_SIZE) / (sizeof(KeyType) + sizeof(ValueType)))
 
@@ -64,8 +64,8 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto ValueAt(int index) const -> ValueType;
   auto InsertAt(int index, const KeyType &key, const ValueType &value) -> bool;
   auto DeleteAt(int index) -> bool;
-  auto GetKeyArrayPtr(int offset) -> void*;
-  auto GetRidArrayPtr(int offset) -> void*;
+  auto GetKeyArrayPtr(int offset) -> void *;
+  auto GetRidArrayPtr(int offset) -> void *;
 
   // helper function that return the first index of key in a leaf that is greater than given key
   auto KeyUpperBound(const KeyType &target, const KeyComparator &cmp) const -> int;

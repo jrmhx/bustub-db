@@ -34,7 +34,7 @@ class BPlusTreeHeaderPage {
   //   root_page_id_ = rpid;
   // }
 
-//  private:
+  //  private:
   page_id_t root_page_id_;
 };
 

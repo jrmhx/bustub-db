@@ -16,8 +16,8 @@
 #include "common/config.h"
 #include "common/exception.h"
 #include "common/rid.h"
-#include "storage/page/b_plus_tree_page.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
+#include "storage/page/b_plus_tree_page.h"
 
 namespace bustub {
 
@@ -79,16 +79,10 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::InsertAt(int index, const KeyType &key, const V
   auto size = GetSize();
   if (index != size) {
     // shift the array if insertion pos is in the middle
-    std::memmove(
-      reinterpret_cast<void*>(&key_array_[index + 1]),
-      reinterpret_cast<void*>(&key_array_[index]),
-      (size - index) * sizeof(KeyType)
-    );
-    std::memmove(
-      reinterpret_cast<void*>(&rid_array_[index + 1]),
-      reinterpret_cast<void*>(&rid_array_[index]),
-      (size - index) * sizeof(ValueType)
-    );
+    std::memmove(reinterpret_cast<void *>(&key_array_[index + 1]), reinterpret_cast<void *>(&key_array_[index]),
+                 (size - index) * sizeof(KeyType));
+    std::memmove(reinterpret_cast<void *>(&rid_array_[index + 1]), reinterpret_cast<void *>(&rid_array_[index]),
+                 (size - index) * sizeof(ValueType));
   }
   key_array_[index] = key;
   rid_array_[index] = value;
@@ -98,20 +92,14 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::InsertAt(int index, const KeyType &key, const V
 
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::DeleteAt(int index) -> bool {
-  if(index < 0 || index >= GetSize()) {
+  if (index < 0 || index >= GetSize()) {
     return false;
   }
   auto size = GetSize();
-  std::memmove(
-      reinterpret_cast<void*>(&key_array_[index]),
-      reinterpret_cast<void*>(&key_array_[index + 1]),
-      (size - index - 1) * sizeof(KeyType)
-    );
-  std::memmove(
-    reinterpret_cast<void*>(&rid_array_[index]),
-    reinterpret_cast<void*>(&rid_array_[index + 1]),
-    (size - index - 1) * sizeof(ValueType)
-  );
+  std::memmove(reinterpret_cast<void *>(&key_array_[index]), reinterpret_cast<void *>(&key_array_[index + 1]),
+               (size - index - 1) * sizeof(KeyType));
+  std::memmove(reinterpret_cast<void *>(&rid_array_[index]), reinterpret_cast<void *>(&rid_array_[index + 1]),
+               (size - index - 1) * sizeof(ValueType));
 
   ChangeSizeBy(-1);
 
@@ -121,7 +109,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::DeleteAt(int index) -> bool {
 /**
  * @brief Binary search, duplicate elements(actually non-duplicated but doesnt matter), right-most inser point
  * similar to std::upperbound
- * 
+ *
  * @param target target key to search
  * @param cmp comparator for key type
  * @return return the first index of key in a leaf that is greater than given key. return size if not found.
@@ -146,17 +134,17 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyUpperBound(const KeyType &target, const KeyC
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetKeyArrayPtr(int offset) -> void* {
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetKeyArrayPtr(int offset) -> void * {
   if (offset >= 0 && offset < GetMaxSize()) {
-    return reinterpret_cast<void*>(&key_array_[offset]);
+    return reinterpret_cast<void *>(&key_array_[offset]);
   }
   return nullptr;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetRidArrayPtr(int offset) -> void* {
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetRidArrayPtr(int offset) -> void * {
   if (offset >= 0 && offset < GetMaxSize()) {
-    return reinterpret_cast<void*>(&rid_array_[offset]);
+    return reinterpret_cast<void *>(&rid_array_[offset]);
   }
   return nullptr;
 }

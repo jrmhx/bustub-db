@@ -38,7 +38,7 @@ class IndexIterator {
 
   auto operator++() -> IndexIterator &;
 
-  auto operator==(const IndexIterator &itr) const -> bool { 
+  auto operator==(const IndexIterator &itr) const -> bool {
     if (is_valid_ != itr.is_valid_) {
       return false;
     }
@@ -50,7 +50,7 @@ class IndexIterator {
     return curr_leaf_page_ == itr.curr_leaf_page_ && curr_pos_ == itr.curr_pos_;
   }
 
-  auto operator!=(const IndexIterator &itr) const -> bool { 
+  auto operator!=(const IndexIterator &itr) const -> bool {
     if (is_valid_ != itr.is_valid_) {
       return true;
     }
@@ -67,7 +67,7 @@ class IndexIterator {
 
   BufferPoolManager *bpm_{nullptr};
   ReadPageGuard rpg_;
-  const B_PLUS_TREE_LEAF_PAGE_TYPE* curr_leaf_page_{nullptr};
+  const B_PLUS_TREE_LEAF_PAGE_TYPE *curr_leaf_page_{nullptr};
   int curr_pos_{0};
   bool is_valid_{false};
 };

@@ -35,9 +35,9 @@ INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator() = default;  // NOLINT
 
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::IndexIterator(BufferPoolManager *bpm, ReadPageGuard rpg, int pos) 
-: bpm_(bpm), rpg_(std::move(rpg)), curr_pos_(pos) {
-  if(bpm_ != nullptr) {
+INDEXITERATOR_TYPE::IndexIterator(BufferPoolManager *bpm, ReadPageGuard rpg, int pos)
+    : bpm_(bpm), rpg_(std::move(rpg)), curr_pos_(pos) {
+  if (bpm_ != nullptr) {
     if (rpg_.IsValid()) {
       curr_leaf_page_ = rpg_.As<B_PLUS_TREE_LEAF_PAGE_TYPE>();
       is_valid_ = true;
@@ -46,9 +46,7 @@ INDEXITERATOR_TYPE::IndexIterator(BufferPoolManager *bpm, ReadPageGuard rpg, int
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::IsEnd() -> bool { 
-  return !is_valid_ || curr_leaf_page_->GetSize() == 0;
-}
+auto INDEXITERATOR_TYPE::IsEnd() -> bool { return !is_valid_ || curr_leaf_page_->GetSize() == 0; }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator*() -> std::pair<const KeyType &, const ValueType &> {
@@ -57,10 +55,10 @@ auto INDEXITERATOR_TYPE::operator*() -> std::pair<const KeyType &, const ValueTy
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & { 
+auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   BUSTUB_ASSERT(!IsEnd(), "iterator end!");
   if (curr_pos_ == curr_leaf_page_->GetSize() - 1) {
-    if (curr_leaf_page_->GetNextPageId() == INVALID_PAGE_ID){
+    if (curr_leaf_page_->GetNextPageId() == INVALID_PAGE_ID) {
       rpg_.Drop();
       is_valid_ = false;
     } else {

@@ -124,15 +124,16 @@ class BPlusTree {
 
   auto ToPrintableBPlusTree(page_id_t root_id) -> PrintableBPlusTree;
 
-  auto getUpperBoundLocation(Context &ctx, const KeyType &key, const KeyComparator &cmp) -> std::optional<int>;
+  auto GetUpperBoundLocation(Context &ctx, const KeyType &key, const KeyComparator &cmp) -> std::optional<int>;
 
-  auto insertAndSplit(Context &ctx, int index, const KeyType &key, const ValueType &value, const KeyComparator &cmp) -> bool;
+  auto InsertAndSplit(Context &ctx, int index, const KeyType &key, const ValueType &value, const KeyComparator &cmp)
+      -> bool;
 
-  auto removeAndBalance(Context &ctx, int index) -> void;
+  auto RemoveAndBalance(Context &ctx, int index) -> void;
 
-  auto getLeftMostLeafPageGuard() -> std::optional<ReadPageGuard>;
+  auto GetLeftMostLeafPageGuard() -> std::optional<ReadPageGuard>;
 
-  auto getLeftPageGuardByKey(const KeyType &key) -> std::optional<std::pair<ReadPageGuard, int>>;
+  auto GetLeftPageGuardByKey(const KeyType &key) -> std::optional<std::pair<ReadPageGuard, int>>;
 
   // member variable
   std::string index_name_;
