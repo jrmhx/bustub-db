@@ -179,6 +179,15 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
     ctx.header_page_ = std::nullopt;
     return false;
   }
+  // check duplicated key insertion
+  auto possible_key_index = possible_insert_index.value() - 1;
+  if (possible_key_index >= 0) {
+    auto possible_key = ctx.write_set_.back().As<B_PLUS_TREE_LEAF_PAGE_TYPE>()->KeyAt(possible_key_index);
+    if (comparator_(possible_key, key) == 0) {
+      ctx.header_page_ = std::nullopt;
+      return false;
+    }
+  }
   insertAndSplit(ctx, possible_insert_index.value(), key, value, comparator_);
   ctx.header_page_ = std::nullopt;
   return true;
