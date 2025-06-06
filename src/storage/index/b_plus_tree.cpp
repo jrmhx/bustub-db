@@ -459,11 +459,20 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
         header->root_page_id_ = INVALID_PAGE_ID;
         curr_wpg.Drop();
         auto res = bpm_->DeletePage(curr_pid);
-        BUSTUB_ASSERT(res, "fuck");
+        BUSTUB_ASSERT(res, "unable to delete the page");
+        return;
       }
-      return;
     }
+    // curr leaf is not root but has 0 size
     if (curr_leaf->GetSize() == 0) {
+      // check if it has left slibling as it needs to update the nextPageId
+      auto siblings = find_curr_sibling(curr_pid);
+      auto left_opt = std::move(siblings.first);
+      if (left_opt.has_value()) {
+        auto left_wpg = std::move(left_opt.value());
+        B_PLUS_TREE_LEAF_PAGE_TYPE* left = left_wpg.template AsMut<B_PLUS_TREE_LEAF_PAGE_TYPE>();
+        left->SetNextPageId(curr_leaf->GetNextPageId());
+      }
       curr_wpg.Drop();
       bpm_->DeletePage(curr_pid);
       auto parent = ctx.write_set_.back().As<BPlusTreeInternalPage<KeyType, page_id_t,KeyComparator>>();
@@ -560,6 +569,7 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
         header->root_page_id_ = curr_internal->ValueAt(0);
         curr_wpg.Drop();
         bpm_->DeletePage(curr_pid);
+        return;
       }
       if (curr_internal->GetSize() == 0) {
         // set the root invalid
@@ -567,8 +577,8 @@ auto BPLUSTREE_TYPE::removeAndBalance(Context &ctx, int index) -> void {
         header->root_page_id_ = INVALID_PAGE_ID;
         curr_wpg.Drop();
         bpm_->DeletePage(curr_pid);
+        return;
       }
-      return;
     }
     if (curr_internal->GetSize() == 0) {
       curr_wpg.Drop();
