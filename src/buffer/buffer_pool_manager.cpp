@@ -20,6 +20,7 @@
 #include <vector>
 #include "buffer/lru_k_replacer.h"
 #include "common/config.h"
+#include "common/macros.h"
 #include "storage/disk/disk_scheduler.h"
 #include "storage/page/page_guard.h"
 
@@ -144,6 +145,13 @@ auto BufferPoolManager::NewPage() -> page_id_t {
   free_frame->page_id_ = std::make_optional(pid);
   replacer_->RecordAccess(fid);
   page_table_.insert({pid, fid});
+  // flush the new page into disk for pass the test case
+  auto callback = disk_scheduler_->CreatePromise();
+  auto result = callback.get_future();
+  disk_scheduler_->Schedule(DiskRequest{
+      .is_write_ = true, .data_ = free_frame->GetDataMut(), .page_id_ = pid, .callback_ = std::move(callback)});
+
+  BUSTUB_ASSERT(result.get(), "Flush failed");
   return pid;
 }
 
