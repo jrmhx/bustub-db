@@ -11,7 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include <memory>
+#include <optional>
 #include "common/macros.h"
+#include "storage/table/tuple.h"
 
 #include "execution/executors/insert_executor.h"
 
@@ -26,11 +28,18 @@ namespace bustub {
 InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx) {
-  UNIMPLEMENTED("TODO(P3): Add implementation.");
+  plan_ = plan;
+  auto *catalog = exec_ctx->GetCatalog();
+  BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
+  table_info_ = catalog->GetTable(plan->GetTableOid());
+  BUSTUB_ASSERT(table_info_ != nullptr, "invalid table");
+  child_executor_ = std::move(child_executor);
 }
 
 /** Initialize the insert */
-void InsertExecutor::Init() { UNIMPLEMENTED("TODO(P3): Add implementation."); }
+void InsertExecutor::Init() { 
+  child_executor_->Init();
+}
 
 /**
  * Yield the number of rows inserted into the table.
@@ -42,7 +51,7 @@ void InsertExecutor::Init() { UNIMPLEMENTED("TODO(P3): Add implementation."); }
  * NOTE: InsertExecutor::Next() returns true with number of inserted rows produced only once.
  */
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  UNIMPLEMENTED("TODO(P3): Add implementation.");
+  UNIMPLEMENTED("TODO");
 }
 
 }  // namespace bustub
