@@ -12,8 +12,12 @@
 
 #include <memory>
 #include <optional>
+#include "catalog/column.h"
 #include "common/macros.h"
+#include "common/rid.h"
 #include "storage/table/tuple.h"
+#include "type/type_id.h"
+#include "type/value.h"
 
 #include "execution/executors/insert_executor.h"
 
@@ -39,6 +43,7 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
 /** Initialize the insert */
 void InsertExecutor::Init() { 
   child_executor_->Init();
+  produced_ = false;
 }
 
 /**
@@ -51,7 +56,27 @@ void InsertExecutor::Init() {
  * NOTE: InsertExecutor::Next() returns true with number of inserted rows produced only once.
  */
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  UNIMPLEMENTED("TODO");
+  if (produced_) {
+    return false;
+  }
+  int inserted = 0;
+  Tuple t;
+  RID r;
+  while (child_executor_->Next(&t, &r)){
+    TupleMeta meta{exec_ctx_->GetTransaction()->GetTransactionId(), false};
+    auto rid_opt = table_info_->table_->InsertTuple(meta, t);
+    if (rid_opt != std::nullopt) {
+      // TODO(jrmh) add index insert
+      ++inserted;
+    } else {
+      // unsuccessful insert
+      return false;
+    }
+  }
+  Schema schema({{"-", TypeId::INTEGER}});
+  *tuple = Tuple({Value{TypeId::INTEGER, inserted}}, &schema);
+  produced_ = true;
+  return true;
 }
 
 }  // namespace bustub

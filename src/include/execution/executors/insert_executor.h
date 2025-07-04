@@ -45,7 +45,7 @@ class InsertExecutor : public AbstractExecutor {
   std::shared_ptr<TableInfo> table_info_;
   std::unique_ptr<AbstractExecutor> child_executor_;
   // InsertExecutor::Next() returns true with number of inserted rows produced only once.
-  bool has_executed_ = false;
+  bool produced_ = false;
 };
 
 }  // namespace bustub
