@@ -42,7 +42,7 @@ class InsertExecutor : public AbstractExecutor {
  private:
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;
-  std::shared_ptr<TableInfo> table_info_;
+  const TableInfo *table_info_;
   std::unique_ptr<AbstractExecutor> child_executor_;
   // InsertExecutor::Next() returns true with number of inserted rows produced only once.
   bool produced_ = false;

@@ -35,7 +35,7 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
   plan_ = plan;
   auto *catalog = exec_ctx->GetCatalog();
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
-  table_info_ = catalog->GetTable(plan->GetTableOid());
+  table_info_ = catalog->GetTable(plan->GetTableOid()).get();
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table");
   child_executor_ = std::move(child_executor);
 }
