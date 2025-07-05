@@ -1,5 +1,5 @@
-<mxfile host="app.diagrams.net" modified="2025-07-05T00:00:00.000Z" agent="5.0" etag="xyz" version="24.0.0" type="device">
-  <diagram name="BusTub Ownership & Lifecycle" id="bustub-ownership">
+<mxfile host="app.diagrams.net" modified="2024-07-05T00:00:00.000Z" agent="5.0" etag="xyz" version="24.0.0" type="device">
+  <diagram name="BusTub Ownership and Lifecycle" id="bustub-ownership">
     <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
       <root>
         <mxCell id="0" />
