@@ -1,221 +1,152 @@
-<mxfile host="app.diagrams.net" modified="2024-07-05T00:00:00.000Z" agent="5.0" etag="xyz" version="24.0.0" type="device">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36" version="27.2.0">
   <diagram name="BusTub Ownership and Lifecycle" id="bustub-ownership">
-    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+    <mxGraphModel dx="1078" dy="596" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        
-        <!-- Title -->
-        <mxCell id="title" value="BusTub Database System: Object Ownership and Lifecycle" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="title" value="BusTub Database System: Object Ownership and Lifecycle" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="400" y="20" width="600" height="30" as="geometry" />
         </mxCell>
-
-        <!-- Legend -->
-        <mxCell id="legend_title" value="Ownership Legend:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="legend_title" value="Ownership Legend:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="50" y="70" width="150" height="20" as="geometry" />
         </mxCell>
-        
-        <mxCell id="legend_owner" value="std::shared_ptr (Owner)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="legend_owner" value="std::shared_ptr (Owner)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="50" y="100" width="180" height="30" as="geometry" />
         </mxCell>
-        
-        <mxCell id="legend_borrower" value="const T* (Non-owning borrower)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="legend_borrower" value="const T* (Non-owning borrower)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="50" y="140" width="180" height="30" as="geometry" />
         </mxCell>
-        
-        <mxCell id="legend_unique" value="std::unique_ptr (Unique owner)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="legend_unique" value="std::unique_ptr (Unique owner)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="50" y="180" width="180" height="30" as="geometry" />
         </mxCell>
-
-        <!-- Database Instance Level -->
-        <mxCell id="db_instance" value="Database Instance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="db_instance" value="Database Instance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="600" y="100" width="200" height="40" as="geometry" />
         </mxCell>
-
-        <!-- Catalog - Long-lived system component -->
-        <mxCell id="catalog" value="Catalog (System-wide schema manager)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="catalog" value="Catalog (System-wide schema manager)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="300" y="200" width="200" height="60" as="geometry" />
         </mxCell>
-
-        <!-- BufferPoolManager - Long-lived system component -->
-        <mxCell id="bpm" value="BufferPoolManager (System-wide page cache)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="bpm" value="BufferPoolManager (System-wide page cache)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="550" y="200" width="200" height="60" as="geometry" />
         </mxCell>
-
-        <!-- TransactionManager - Long-lived system component -->
-        <mxCell id="txn_mgr" value="TransactionManager (System-wide txn coordinator)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="txn_mgr" value="TransactionManager (System-wide txn coordinator)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="800" y="200" width="200" height="60" as="geometry" />
         </mxCell>
-
-        <!-- TableInfo owned by Catalog -->
-        <mxCell id="table_info" value="std::shared_ptr TableInfo (Table metadata + heap ptr)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="280" y="320" width="180" height="50" as="geometry" />
+        <mxCell id="table_info" value="std::shared_ptr TableInfo (Table metadata + heap ptr)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="260" y="320" width="180" height="50" as="geometry" />
         </mxCell>
-
-        <!-- IndexInfo owned by Catalog -->
-        <mxCell id="index_info" value="std::shared_ptr IndexInfo (Index metadata)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="index_info" value="std::shared_ptr IndexInfo (Index metadata)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="1" vertex="1">
           <mxGeometry x="480" y="320" width="160" height="50" as="geometry" />
         </mxCell>
-
-        <!-- Query Processing Lifecycle -->
-        <mxCell id="query_lifecycle" value="Query Processing Lifecycle" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="query_lifecycle" value="Query Processing Lifecycle" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="50" y="400" width="300" height="30" as="geometry" />
         </mxCell>
-
-        <!-- Query Plan Tree -->
-        <mxCell id="plan_tree" value="Query Plan Tree (PlanNode hierarchy) Created by Planner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="100" y="450" width="160" height="70" as="geometry" />
+        <mxCell id="plan_tree" value="Query Plan Tree (PlanNode hierarchy) Created by Planner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="60" y="450" width="160" height="70" as="geometry" />
         </mxCell>
-
-        <!-- ExecutorContext -->
-        <mxCell id="exec_ctx" value="ExecutorContext (Query execution context)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="300" y="450" width="160" height="50" as="geometry" />
+        <mxCell id="exec_ctx" value="ExecutorContext (Query execution context)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="350" y="390" width="160" height="50" as="geometry" />
         </mxCell>
-
-        <!-- Executor Tree -->
-        <mxCell id="executor_tree" value="Executor Tree (std::unique_ptr chain)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="500" y="450" width="160" height="50" as="geometry" />
+        <mxCell id="executor_tree" value="Executor Tree (std::unique_ptr chain)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="520" y="460" width="160" height="50" as="geometry" />
         </mxCell>
-
-        <!-- Individual Executors -->
-        <mxCell id="insert_exec" value="InsertExecutor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="100" y="580" width="120" height="40" as="geometry" />
+        <mxCell id="insert_exec" value="InsertExecutor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="650" y="660" width="120" height="40" as="geometry" />
         </mxCell>
-
-        <mxCell id="update_exec" value="UpdateExecutor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="240" y="580" width="120" height="40" as="geometry" />
+        <mxCell id="update_exec" value="UpdateExecutor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="480" y="570" width="120" height="40" as="geometry" />
         </mxCell>
-
-        <mxCell id="seqscan_exec" value="SeqScanExecutor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="380" y="580" width="120" height="40" as="geometry" />
+        <mxCell id="seqscan_exec" value="SeqScanExecutor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="570" y="615" width="120" height="40" as="geometry" />
         </mxCell>
-
-        <!-- Executor member variables -->
-        <mxCell id="exec_members_title" value="Executor Members (Non-owning borrowers):" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="exec_members_title" value="Executor Members (Non-owning borrowers):" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="100" y="650" width="300" height="20" as="geometry" />
         </mxCell>
-
-        <!-- Plan pointer -->
-        <mxCell id="plan_ptr" value="const UpdatePlanNode* plan_ (Borrows from plan tree)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="100" y="680" width="140" height="50" as="geometry" />
+        <mxCell id="plan_ptr" value="const UpdatePlanNode* plan_ (Borrows from plan tree)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="20" y="690" width="140" height="50" as="geometry" />
         </mxCell>
-
-        <!-- Table info pointer -->
-        <mxCell id="table_ptr" value="const TableInfo* table_info_ (Borrows from catalog)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="260" y="680" width="140" height="50" as="geometry" />
+        <mxCell id="table_ptr" value="const TableInfo* table_info_ (Borrows from catalog)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="260" y="690" width="140" height="50" as="geometry" />
         </mxCell>
-
-        <!-- Child executor -->
-        <mxCell id="child_exec" value="std::unique_ptr AbstractExecutor child_executor_ (Owns child in tree)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="420" y="680" width="160" height="50" as="geometry" />
+        <mxCell id="child_exec" value="std::unique_ptr AbstractExecutor child_executor_ (Owns child in tree)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="420" y="710" width="160" height="50" as="geometry" />
         </mxCell>
-
-        <!-- Lifetime Analysis -->
-        <mxCell id="lifetime_title" value="Lifetime Analysis" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="lifetime_title" value="Lifetime Analysis" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="700" y="400" width="200" height="30" as="geometry" />
         </mxCell>
-
-        <!-- System components -->
-        <mxCell id="system_lifetime" value="System Components (Database startup to shutdown)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="system_lifetime" value="System Components (Database startup to shutdown)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="700" y="450" width="200" height="50" as="geometry" />
         </mxCell>
-
-        <!-- Query components -->
-        <mxCell id="query_lifetime" value="Query Components (Query start to end)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fad7ac;strokeColor=#b46504;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="query_lifetime" value="Query Components (Query start to end)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fad7ac;strokeColor=#b46504;fontSize=12;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="920" y="450" width="180" height="50" as="geometry" />
         </mxCell>
-
-        <!-- Executor lifetime -->
-        <mxCell id="executor_lifetime" value="Executors&lt;br&gt;(Execution phase only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcccc;strokeColor=#ff6666;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="executor_lifetime" value="Executors&lt;br&gt;(Execution phase only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcccc;strokeColor=#ff6666;fontSize=12;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="1120" y="450" width="150" height="50" as="geometry" />
         </mxCell>
-
-        <!-- Memory Safety Notes -->
-        <mxCell id="safety_title" value="C++ Memory Safety Principles in BusTub:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="700" y="550" width="350" height="25" as="geometry" />
-        </mxCell>
-
-        <mxCell id="safety_1" value="1. Long-lived system components use shared_ptr for shared ownership" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="700" y="580" width="450" height="20" as="geometry" />
-        </mxCell>
-
-        <mxCell id="safety_2" value="2. Executors borrow references (raw pointers) - no ownership responsibility" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="700" y="605" width="450" height="20" as="geometry" />
-        </mxCell>
-
-        <mxCell id="safety_3" value="3. Executor tree uses unique_ptr for clear single ownership chain" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="700" y="630" width="450" height="20" as="geometry" />
-        </mxCell>
-
-        <mxCell id="safety_4" value="4. Plan tree owned by planner, borrowed by executors during execution" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="700" y="655" width="450" height="20" as="geometry" />
-        </mxCell>
-
-        <mxCell id="safety_5" value="5. Raw pointers safe because borrower lifetime is less than owner lifetime" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="700" y="680" width="450" height="20" as="geometry" />
-        </mxCell>
-
-        <!-- Ownership arrows -->
-        <mxCell id="db_to_catalog" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;" edge="1" parent="1" source="db_instance" target="catalog">
+        <mxCell id="db_to_catalog" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;" parent="1" source="db_instance" target="catalog" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="db_to_bpm" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;" edge="1" parent="1" source="db_instance" target="bpm">
+        <mxCell id="db_to_bpm" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" parent="1" source="db_instance" target="bpm" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="db_to_txn" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;" edge="1" parent="1" source="db_instance" target="txn_mgr">
+        <mxCell id="db_to_txn" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;exitX=0.75;exitY=1;exitDx=0;exitDy=0;" parent="1" source="db_instance" target="txn_mgr" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="catalog_to_table" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;" edge="1" parent="1" source="catalog" target="table_info">
+        <mxCell id="catalog_to_table" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" parent="1" source="catalog" target="table_info" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="catalog_to_index" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;" edge="1" parent="1" source="catalog" target="index_info">
+        <mxCell id="catalog_to_index" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;exitX=0.75;exitY=1;exitDx=0;exitDy=0;" parent="1" source="catalog" target="index_info" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- Query processing arrows -->
-        <mxCell id="plan_to_exec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" parent="1" source="plan_tree" target="executor_tree">
+        <mxCell id="plan_to_exec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;" parent="1" source="plan_tree" target="executor_tree" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="ctx_to_exec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;" edge="1" parent="1" source="exec_ctx" target="executor_tree">
+        <mxCell id="ctx_to_exec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;" parent="1" source="exec_ctx" target="executor_tree" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- Borrowing arrows (dashed) -->
-        <mxCell id="exec_to_plan" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeColor=#d6b656;strokeWidth=2;dashed=1;" edge="1" parent="1" source="plan_ptr" target="plan_tree">
+        <mxCell id="exec_to_plan" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeColor=#d6b656;strokeWidth=2;dashed=1;" parent="1" source="plan_ptr" target="plan_tree" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="exec_to_table" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeColor=#d6b656;strokeWidth=2;dashed=1;" edge="1" parent="1" source="table_ptr" target="table_info">
+        <mxCell id="exec_to_table" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d6b656;strokeWidth=2;dashed=1;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" parent="1" source="table_ptr" target="table_info" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="300" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="exec_tree_to_children" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;exitX=0.75;exitY=1;exitDx=0;exitDy=0;" parent="1" source="executor_tree" target="insert_exec" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- Tree ownership -->
-        <mxCell id="exec_tree_to_children" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" parent="1" source="executor_tree" target="insert_exec">
+        <mxCell id="exec_tree_to_update" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" parent="1" source="executor_tree" target="update_exec" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="exec_tree_to_update" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" parent="1" source="executor_tree" target="update_exec">
+        <mxCell id="exec_tree_to_scan" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;" parent="1" source="executor_tree" target="seqscan_exec" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="exec_tree_to_scan" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" parent="1" source="executor_tree" target="seqscan_exec">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Arrow labels -->
-        <mxCell id="owns_label" value="owns" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="520" y="170" width="30" height="15" as="geometry" />
-        </mxCell>
-
-        <mxCell id="borrows_label" value="borrows" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+        <mxCell id="borrows_label" value="borrows" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
           <mxGeometry x="190" y="600" width="40" height="15" as="geometry" />
         </mxCell>
-
+        <mxCell id="Q2sJ8eD23IedbdKIq34A-1" value="own" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="495" y="178" width="50" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Q2sJ8eD23IedbdKIq34A-2" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="860" y="660" width="450" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="safety_title" value="C++ Memory Safety Principles in BusTub:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;" parent="Q2sJ8eD23IedbdKIq34A-2" vertex="1">
+          <mxGeometry width="350" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="safety_1" value="1. Long-lived system components use shared_ptr for shared ownership" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" parent="Q2sJ8eD23IedbdKIq34A-2" vertex="1">
+          <mxGeometry y="30" width="450" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="safety_2" value="2. Executors borrow references (raw pointers) - no ownership responsibility" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" parent="Q2sJ8eD23IedbdKIq34A-2" vertex="1">
+          <mxGeometry y="55" width="450" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="safety_3" value="3. Executor tree uses unique_ptr for clear single ownership chain" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" parent="Q2sJ8eD23IedbdKIq34A-2" vertex="1">
+          <mxGeometry y="80" width="450" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="safety_4" value="4. Plan tree owned by planner, borrowed by executors during execution" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" parent="Q2sJ8eD23IedbdKIq34A-2" vertex="1">
+          <mxGeometry y="105" width="450" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="safety_5" value="5. Raw pointers safe because borrower lifetime is less than owner lifetime" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" parent="Q2sJ8eD23IedbdKIq34A-2" vertex="1">
+          <mxGeometry y="130" width="450" height="20" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
