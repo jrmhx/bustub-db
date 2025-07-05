@@ -10,7 +10,7 @@
         <mxCell id="legend_title" value="Ownership Legend:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;" parent="1" vertex="1">
           <mxGeometry x="50" y="70" width="150" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="legend_owner" value="std::shared_ptr (Owner)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" parent="1" vertex="1">
+        <mxCell id="legend_owner" value="std::shared_ptr (Shared Owner)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="50" y="100" width="180" height="30" as="geometry" />
         </mxCell>
         <mxCell id="legend_borrower" value="const T* (Non-owning borrower)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" parent="1" vertex="1">
