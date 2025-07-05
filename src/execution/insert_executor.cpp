@@ -73,8 +73,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       return false;
     }
   }
-  Schema schema({{"-", TypeId::INTEGER}});
-  *tuple = Tuple({Value{TypeId::INTEGER, inserted}}, &schema);
+  *tuple = Tuple({Value{TypeId::INTEGER, inserted}}, &plan_->OutputSchema());
   produced_ = true;
   return true;
 }
