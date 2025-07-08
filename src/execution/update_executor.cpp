@@ -12,6 +12,8 @@
 
 #include <memory>
 #include "common/macros.h"
+#include "concurrency/transaction.h"
+#include "type/value_factory.h"
 
 #include "execution/executors/update_executor.h"
 
@@ -38,19 +40,24 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
 /** Initialize the update */
 void UpdateExecutor::Init() { 
   child_executor_->Init();
+  produced_ = false;
 }
 
 /**
  * Yield the next tuple from the update.
- * @param[out] tuple The next tuple produced by the update
+ * @param[out] tuple the number of rows being updated (include the rows in the table and any indices)
  * @param[out] rid The next tuple RID produced by the update (ignore this)
  * @return `true` if a tuple was produced, `false` if there are no more tuples
  *
  * NOTE: UpdateExecutor::Next() does not use the `rid` out-parameter.
  */
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
+  if (produced_) {
+    return false;
+  }
   Tuple t;
   RID r;
+  int updated = 0;
 
   while (child_executor_->Next(&t, &r)) {
     // mark the old tuple as deleted
@@ -65,14 +72,14 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       values.push_back(expr->Evaluate(&t, table_info_->schema_));
     }
     Tuple new_tuple(values, &table_info_->schema_);
-
     auto new_rid = table_info_->table_->InsertTuple(TupleMeta{exec_ctx_->GetTransaction()->GetTransactionId(), false}, new_tuple);
-
+    ++updated;
     // update all indexes
     if (new_rid.has_value()) {
       auto txn = exec_ctx_->GetTransaction();
       auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
       for (auto &index_info : indexes) {
+        ++updated;
         index_info->index_->DeleteEntry(
           t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
           r, 
@@ -88,7 +95,8 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       return false;
     }
   }
-
+  *tuple = Tuple({ValueFactory::GetIntegerValue(updated)}, &plan_->OutputSchema());
+  produced_ = true;
   return true;
 }
 
