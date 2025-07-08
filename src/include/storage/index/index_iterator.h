@@ -31,6 +31,14 @@ class IndexIterator {
   IndexIterator();
   ~IndexIterator();  // NOLINT
   IndexIterator(BufferPoolManager *bpm, ReadPageGuard rpg, int pos);
+  
+  // Disable copy constructor and copy assignment operator
+  IndexIterator(const IndexIterator &other) = delete;
+  auto operator=(const IndexIterator &other) -> IndexIterator & = delete;
+  
+  // Move constructor and assignment operator
+  IndexIterator(IndexIterator &&other) noexcept;
+  auto operator=(IndexIterator &&other) noexcept -> IndexIterator &;
 
   auto IsEnd() -> bool;
 

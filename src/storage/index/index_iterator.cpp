@@ -46,6 +46,38 @@ INDEXITERATOR_TYPE::IndexIterator(BufferPoolManager *bpm, ReadPageGuard rpg, int
 }
 
 INDEX_TEMPLATE_ARGUMENTS
+INDEXITERATOR_TYPE::IndexIterator(IndexIterator &&other) noexcept
+    : bpm_(other.bpm_), 
+      rpg_(std::move(other.rpg_)), 
+      curr_leaf_page_(other.curr_leaf_page_),
+      curr_pos_(other.curr_pos_),
+      is_valid_(other.is_valid_) {
+  // Reset the moved-from object
+  other.bpm_ = nullptr;
+  other.curr_leaf_page_ = nullptr;
+  other.curr_pos_ = 0;
+  other.is_valid_ = false;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto INDEXITERATOR_TYPE::operator=(IndexIterator &&other) noexcept -> IndexIterator & {
+  if (this != &other) {
+    bpm_ = other.bpm_;
+    rpg_ = std::move(other.rpg_);
+    curr_leaf_page_ = other.curr_leaf_page_;
+    curr_pos_ = other.curr_pos_;
+    is_valid_ = other.is_valid_;
+    
+    // Reset the moved-from object
+    other.bpm_ = nullptr;
+    other.curr_leaf_page_ = nullptr;
+    other.curr_pos_ = 0;
+    other.is_valid_ = false;
+  }
+  return *this;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::IsEnd() -> bool { return !is_valid_ || curr_leaf_page_->GetSize() == 0; }
 
 INDEX_TEMPLATE_ARGUMENTS

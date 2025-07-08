@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <memory>
 #include "catalog/catalog.h"
 #include "common/rid.h"
 #include "execution/executor_context.h"
@@ -43,6 +44,9 @@ class IndexScanExecutor : public AbstractExecutor {
   const TableInfo *table_info_;
 
   BPlusTreeIndexForTwoIntegerColumn * tree_{nullptr};
+  
+  /** Iterator state for full index scans */
+  BPlusTreeIndexIteratorForTwoIntegerColumn iter_;
   
   /** Helper method for point lookup using pred_keys_ */
   auto HandlePointLookup(Tuple *tuple, RID *rid) -> bool;

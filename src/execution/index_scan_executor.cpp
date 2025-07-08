@@ -35,6 +35,11 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
 void IndexScanExecutor::Init() {  
   auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
   tree_ = dynamic_cast<BPlusTreeIndexForTwoIntegerColumn *>(index_info->index_.get());
+  
+  // Initialize iterator state for full scan
+  if (tree_ != nullptr && plan_->pred_keys_.empty()) {
+    iter_ = tree_->GetBeginIterator();
+  }
 }
 
 auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
@@ -89,17 +94,24 @@ auto IndexScanExecutor::HandlePointLookup(Tuple *tuple, RID *rid) -> bool {
 }
 
 auto IndexScanExecutor::HandleFullScan(Tuple *tuple, RID *rid) -> bool {
-  auto iter = tree_->GetBeginIterator();
-  auto end_iter = tree_->GetEndIterator();
+  // check if iterator is properly initialized
+  if (tree_ == nullptr) {
+    return false;
+  }
   
-  for (; iter != end_iter; ++iter) {
-    auto [key, r] = *iter;
-    *rid = r;
+  // use member iterator that maintains state across calls
+  while (!iter_.IsEnd()) {
+    auto [key, r] = *iter_;
+    ++iter_;  // Advance iterator for next call
     
-    auto tuple_meta = table_info_->table_->GetTupleMeta(*rid);
+    // validate the RID before using it
+    if (r.GetPageId() == INVALID_PAGE_ID) {
+      continue;
+    }
+    
+    auto tuple_meta = table_info_->table_->GetTupleMeta(r);
     if (!tuple_meta.is_deleted_) {
-      const auto [meta, t] = table_info_->table_->GetTuple(*rid);
-      *tuple = t;
+      const auto [meta, t] = table_info_->table_->GetTuple(r);
       
       if (plan_->filter_predicate_ != nullptr) {
         auto result = plan_->filter_predicate_->Evaluate(&t, GetOutputSchema());
@@ -107,6 +119,8 @@ auto IndexScanExecutor::HandleFullScan(Tuple *tuple, RID *rid) -> bool {
           continue;
         }
       }
+      *tuple = t;
+      *rid = r;
       return true;
     }
   }
