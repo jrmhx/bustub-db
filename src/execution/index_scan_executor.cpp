@@ -89,7 +89,6 @@ auto IndexScanExecutor::HandlePointLookup(Tuple *tuple, RID *rid) -> bool {
 }
 
 auto IndexScanExecutor::HandleFullScan(Tuple *tuple, RID *rid) -> bool {
-  // Iterate through all index entries
   auto iter = tree_->GetBeginIterator();
   auto end_iter = tree_->GetEndIterator();
   
@@ -105,14 +104,14 @@ auto IndexScanExecutor::HandleFullScan(Tuple *tuple, RID *rid) -> bool {
       if (plan_->filter_predicate_ != nullptr) {
         auto result = plan_->filter_predicate_->Evaluate(&t, GetOutputSchema());
         if (!result.GetAs<bool>()) {
-          continue;  // Skip this tuple if predicate fails
+          continue;
         }
       }
-      return true;  // Found a matching tuple
+      return true;
     }
   }
   
-  return false;  // No more tuples
+  return false;
 }
 
 }  // namespace bustub
