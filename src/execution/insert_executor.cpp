@@ -18,6 +18,7 @@
 #include "storage/table/tuple.h"
 #include "type/type_id.h"
 #include "type/value.h"
+#include "type/value_factory.h"
 
 #include "execution/executors/insert_executor.h"
 
@@ -73,7 +74,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       return false;
     }
   }
-  *tuple = Tuple({Value{TypeId::INTEGER, inserted}}, &plan_->OutputSchema());
+  *tuple = Tuple({ValueFactory::GetIntegerValue(inserted)}, &plan_->OutputSchema());
   produced_ = true;
   return true;
 }
