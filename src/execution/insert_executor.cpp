@@ -67,7 +67,15 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     TupleMeta meta{exec_ctx_->GetTransaction()->GetTransactionId(), false};
     auto rid_opt = table_info_->table_->InsertTuple(meta, t);
     if (rid_opt != std::nullopt) {
-      // TODO(jrmh) add index insert
+      auto * txn = exec_ctx_->GetTransaction();
+      auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
+      for (auto index_info : indexes) {
+        index_info->index_->InsertEntry(
+          t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
+          rid_opt.value(), 
+          txn
+        );
+      }
       ++inserted;
     } else {
       // unsuccessful insert

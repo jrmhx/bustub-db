@@ -62,22 +62,27 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     std::vector<Value> values;
     values.reserve(plan_->target_expressions_.size());
     for (const auto &expr : plan_->target_expressions_) {
-      values.push_back(expr->Evaluate(&t, GetOutputSchema()));
+      values.push_back(expr->Evaluate(&t, table_info_->schema_));
     }
     Tuple new_tuple(values, &table_info_->schema_);
 
     auto new_rid = table_info_->table_->InsertTuple(TupleMeta{exec_ctx_->GetTransaction()->GetTransactionId(), false}, new_tuple);
 
-    // 5. Update all indexes
+    // update all indexes
     if (new_rid.has_value()) {
       auto txn = exec_ctx_->GetTransaction();
       auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
       for (auto &index_info : indexes) {
         index_info->index_->DeleteEntry(
-            t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), r, txn);
+          t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
+          r, 
+          txn
+        );
         index_info->index_->InsertEntry(
-            new_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
-            new_rid.value(), txn);
+          new_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
+          new_rid.value(), 
+          txn
+        );
       }
     } else {
       return false;

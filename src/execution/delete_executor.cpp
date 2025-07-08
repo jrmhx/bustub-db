@@ -62,6 +62,15 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     auto meta = table_info_->table_->GetTupleMeta(r);
     meta.is_deleted_ = true;
     table_info_->table_->UpdateTupleMeta(meta, r);
+    auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
+    auto *txn = exec_ctx_->GetTransaction();
+    for (auto & index_info : indexes) {
+      index_info->index_->DeleteEntry(
+        t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
+        r, 
+        txn
+      );
+    }
     ++deleted;
   }
   *tuple = Tuple({ValueFactory::GetIntegerValue(deleted)}, &plan_->OutputSchema());
