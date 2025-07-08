@@ -12,10 +12,12 @@
 
 #pragma once
 
+#include "catalog/catalog.h"
 #include "common/rid.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/index_scan_plan.h"
+#include "storage/index/b_plus_tree_index.h"
 #include "storage/table/tuple.h"
 
 namespace bustub {
@@ -37,5 +39,15 @@ class IndexScanExecutor : public AbstractExecutor {
  private:
   /** The index scan plan node to be executed. */
   const IndexScanPlanNode *plan_;
+
+  const TableInfo *table_info_;
+
+  BPlusTreeIndexForTwoIntegerColumn * tree_{nullptr};
+  
+  /** Helper method for point lookup using pred_keys_ */
+  auto HandlePointLookup(Tuple *tuple, RID *rid) -> bool;
+  
+  /** Helper method for full index scan */
+  auto HandleFullScan(Tuple *tuple, RID *rid) -> bool;
 };
 }  // namespace bustub

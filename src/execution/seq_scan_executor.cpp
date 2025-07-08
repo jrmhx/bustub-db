@@ -40,7 +40,7 @@ void SeqScanExecutor::Init() {
   BUSTUB_ASSERT(catalog != nullptr, "Invalid Catalog");
   auto table_info = catalog->GetTable(table_oid);
   BUSTUB_ASSERT(table_info != nullptr, "Invalid Table Info!");
-  table_iter_ = std::make_unique<TableIterator>(table_info->table_->MakeEagerIterator());
+  table_iter_ = std::make_unique<TableIterator>(table_info->table_->MakeIterator());
 }
 
 /**
