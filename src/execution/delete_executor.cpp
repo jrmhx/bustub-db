@@ -33,7 +33,7 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
   table_info_ = catalog->GetTable(plan_->GetTableOid()).get();
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table_info");
-  child_executor_.reset(child_executor.get());
+  child_executor_.reset(child_executor.release());
 }
 
 /** Initialize the delete */

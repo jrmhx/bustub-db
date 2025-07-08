@@ -32,7 +32,7 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
   table_info_ = catalog->GetTable(plan_->GetTableOid()).get();
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table_info");
-  child_executor_.reset(child_executor.get());
+  child_executor_ = std::move(child_executor);
 }
 
 /** Initialize the update */
