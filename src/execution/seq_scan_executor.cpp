@@ -11,9 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "execution/executors/seq_scan_executor.h"
-#include <cstddef>
 #include <memory>
-#include "common/config.h"
 #include "common/macros.h"
 #include "storage/table/table_heap.h"
 #include "storage/table/table_iterator.h"

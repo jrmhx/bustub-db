@@ -12,12 +12,9 @@
 
 #include <memory>
 #include <optional>
-#include "catalog/column.h"
 #include "common/macros.h"
 #include "common/rid.h"
 #include "storage/table/tuple.h"
-#include "type/type_id.h"
-#include "type/value.h"
 #include "type/value_factory.h"
 
 #include "execution/executors/insert_executor.h"
