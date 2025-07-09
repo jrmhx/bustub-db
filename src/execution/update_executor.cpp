@@ -45,7 +45,7 @@ void UpdateExecutor::Init() {
 
 /**
  * Yield the next tuple from the update.
- * @param[out] tuple the number of rows being updated (include the rows in the table and any indices)
+ * @param[out] tuple the number of rows being updated in the table (not include the rows update in the indices)
  * @param[out] rid The next tuple RID produced by the update (ignore this)
  * @return `true` if a tuple was produced, `false` if there are no more tuples
  *
@@ -79,7 +79,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       auto txn = exec_ctx_->GetTransaction();
       auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
       for (auto &index_info : indexes) {
-        ++updated;
+        //++updated;
         index_info->index_->DeleteEntry(
           t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
           r, 
