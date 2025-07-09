@@ -12,6 +12,7 @@
 
 #include "execution/executors/index_scan_executor.h"
 #include <memory>
+#include "common/config.h"
 #include "common/macros.h"
 #include "storage/index/b_plus_tree_index.h"
 
@@ -35,10 +36,27 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
 void IndexScanExecutor::Init() {  
   auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
   tree_ = dynamic_cast<BPlusTreeIndexForTwoIntegerColumn *>(index_info->index_.get());
-  
-  // Initialize iterator state for full scan
+  // init idx iterator state for full scan
   if (tree_ != nullptr && plan_->pred_keys_.empty()) {
-    iter_ = tree_->GetBeginIterator();
+    idx_iter_ = tree_->GetBeginIterator();
+  } else { // point lookup 
+    // evaluate pred_keys_ expressions to get actual values
+    std::vector<Value> key_values;
+    key_values.reserve(plan_->pred_keys_.size());
+    
+    for (const auto &expr : plan_->pred_keys_) {
+      // evaluate the expression (these should be constant values for point lookup)
+      Value value = expr->Evaluate(nullptr, GetOutputSchema());
+      key_values.push_back(value);
+    }
+    
+    auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
+    
+    Tuple key_tuple(key_values, &index_info->key_schema_);
+    
+    // use the index's ScanKey method for efficient point lookup
+    index_info->index_->ScanKey(key_tuple, &pt_lkup_res_, exec_ctx_->GetTransaction());
+    pt_lkup_iter_ = pt_lkup_res_.begin();
   }
 }
 
@@ -57,27 +75,17 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 }
 
 auto IndexScanExecutor::HandlePointLookup(Tuple *tuple, RID *rid) -> bool {
-  // evaluate pred_keys_ expressions to get actual values
-  std::vector<Value> key_values;
-  key_values.reserve(plan_->pred_keys_.size());
-  
-  for (const auto &expr : plan_->pred_keys_) {
-    // evaluate the expression (these should be constant values for point lookup)
-    Value value = expr->Evaluate(nullptr, GetOutputSchema());
-    key_values.push_back(value);
-  }
-  
-  auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
-  
-  Tuple key_tuple(key_values, &index_info->key_schema_);
-  
-  // use the index's ScanKey method for efficient point lookup
-  std::vector<RID> result_rids;
-  index_info->index_->ScanKey(key_tuple, &result_rids, exec_ctx_->GetTransaction());
-  
-  for (const auto &result_rid : result_rids) {
-    const auto [meta, t] = table_info_->table_->GetTuple(result_rid);
-    if (!meta.is_deleted_) {
+  while(pt_lkup_iter_ != pt_lkup_res_.end()) {
+    const auto r = *pt_lkup_iter_;
+    ++pt_lkup_iter_;
+
+    if (r.GetPageId() == INVALID_PAGE_ID) {
+      continue;
+    }
+    auto tuple_meta = table_info_->table_->GetTupleMeta(r);
+    if (!tuple_meta.is_deleted_) {
+      const auto [meta, t] = table_info_->table_->GetTuple(r);
+      
       if (plan_->filter_predicate_ != nullptr) {
         auto result = plan_->filter_predicate_->Evaluate(&t, GetOutputSchema());
         if (!result.GetAs<bool>()) {
@@ -85,11 +93,10 @@ auto IndexScanExecutor::HandlePointLookup(Tuple *tuple, RID *rid) -> bool {
         }
       }
       *tuple = t;
-      *rid = result_rid;
+      *rid = r;
       return true;
     }
   }
-  
   return false;
 }
 
@@ -100,9 +107,10 @@ auto IndexScanExecutor::HandleFullScan(Tuple *tuple, RID *rid) -> bool {
   }
   
   // use member iterator that maintains state across calls
-  while (!iter_.IsEnd()) {
-    auto [key, r] = *iter_;
-    ++iter_;  // Advance iterator for next call
+  while (!idx_iter_.IsEnd()) {
+    // extract RID as a copy to avoid reference invalidation when iterator advances
+    const auto r = (*idx_iter_).second;
+    ++idx_iter_;
     
     // validate the RID before using it
     if (r.GetPageId() == INVALID_PAGE_ID) {

@@ -12,7 +12,9 @@
 
 #pragma once
 
+#include <deque>
 #include <memory>
+#include <vector>
 #include "catalog/catalog.h"
 #include "common/rid.h"
 #include "execution/executor_context.h"
@@ -46,7 +48,11 @@ class IndexScanExecutor : public AbstractExecutor {
   BPlusTreeIndexForTwoIntegerColumn * tree_{nullptr};
   
   /** Iterator state for full index scans */
-  BPlusTreeIndexIteratorForTwoIntegerColumn iter_;
+  BPlusTreeIndexIteratorForTwoIntegerColumn idx_iter_;
+
+  std::vector<RID> pt_lkup_res_;
+
+  std::vector<RID>::iterator pt_lkup_iter_;
   
   /** Helper method for point lookup using pred_keys_ */
   auto HandlePointLookup(Tuple *tuple, RID *rid) -> bool;
