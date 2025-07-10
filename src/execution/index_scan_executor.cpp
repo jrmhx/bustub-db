@@ -53,7 +53,7 @@ void IndexScanExecutor::Init() {
     auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
     
     Tuple key_tuple(key_values, &index_info->key_schema_);
-    
+    pt_lkup_res_.clear();
     // use the index's ScanKey method for efficient point lookup
     index_info->index_->ScanKey(key_tuple, &pt_lkup_res_, exec_ctx_->GetTransaction());
     pt_lkup_iter_ = pt_lkup_res_.begin();
