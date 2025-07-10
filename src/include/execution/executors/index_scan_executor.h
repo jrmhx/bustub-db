@@ -12,8 +12,6 @@
 
 #pragma once
 
-#include <deque>
-#include <memory>
 #include <vector>
 #include "catalog/catalog.h"
 #include "common/rid.h"

@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include <memory>
-#include "common/macros.h"
 
 #include "execution/executors/aggregation_executor.h"
 
