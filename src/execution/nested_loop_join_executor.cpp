@@ -58,7 +58,7 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     Tuple right_tuple;
     RID right_rid;
     
-    // Continue iterating through right tuples
+    // continue iterating through right tuples
     if (right_executor_->Next(&right_tuple, &right_rid)) {
       // evaluate the join predicate
       Value predicate_result = plan_->Predicate()->EvaluateJoin(
@@ -82,13 +82,12 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
         left_matched_ = true;
         return true;
       }
-      
-      // Not a match, continue with the same left tuple and next right tuple
+
       continue;
     }
     
-    // No more right tuples for current left tuple
-    // Handle LEFT JOIN - emit left tuple with NULL values for right side if no match
+    // no more right tuples for current left tuple
+    // handle LEFT JOIN - emit left tuple with NULL values for right side if no match
     if (plan_->GetJoinType() == JoinType::LEFT && !left_matched_) {
       std::vector<Value> output_values;
       
@@ -106,7 +105,7 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       *tuple = Tuple(output_values, &GetOutputSchema());
       *rid = RID{};
       
-      // Move to next left tuple and reset state
+      // move to next left tuple and reset state
       left_tuple_ready_ = left_executor_->Next(&left_tuple_, &left_rid_);
       left_matched_ = false;
       right_executor_->Init();
@@ -114,7 +113,7 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       return true;
     }
     
-    // Move to next left tuple (for INNER JOIN or LEFT JOIN that had matches)
+    // move to next left tuple
     left_tuple_ready_ = left_executor_->Next(&left_tuple_, &left_rid_);
     left_matched_ = false;
     right_executor_->Init();
