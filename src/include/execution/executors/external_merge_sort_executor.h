@@ -143,7 +143,17 @@ class ExternalMergeSortExecutor : public AbstractExecutor {
   /** Compares tuples based on the order-bys */
   TupleComparator cmp_;
 
-  /** TODO(P3): You will want to add your own private members here. */
+  /** The child executor from which tuples are obtained */
+  std::unique_ptr<AbstractExecutor> child_executor_;
+  
+  /** All sorted tuples (for simplified implementation) */
+  std::vector<Tuple> sorted_tuples_;
+  
+  /** Current position in sorted tuples */
+  size_t current_index_{0};
+  
+  /** Whether initialization is complete */
+  bool initialized_{false};
 };
 
 }  // namespace bustub
