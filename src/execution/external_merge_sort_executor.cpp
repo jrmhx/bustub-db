@@ -27,31 +27,31 @@ ExternalMergeSortExecutor<K>::ExternalMergeSortExecutor(ExecutorContext *exec_ct
 template <size_t K>
 void ExternalMergeSortExecutor<K>::Init() {
   child_executor_->Init();
-  
+
   if (!initialized_) {
     // collect all tuples from child
     std::vector<SortEntry> sort_entries;
     Tuple tuple;
     RID rid;
-    
+
     while (child_executor_->Next(&tuple, &rid)) {
       auto sort_key = GenerateSortKey(tuple, plan_->GetOrderBy(), child_executor_->GetOutputSchema());
       sort_entries.emplace_back(sort_key, tuple);
     }
-    
+
     // sort all tuples using the comparator
     std::sort(sort_entries.begin(), sort_entries.end(), cmp_);
-    
+
     // extract sorted tuples
     sorted_tuples_.clear();
     sorted_tuples_.reserve(sort_entries.size());
     for (const auto &entry : sort_entries) {
       sorted_tuples_.push_back(entry.second);
     }
-    
+
     initialized_ = true;
   }
-  
+
   current_index_ = 0;
 }
 
@@ -66,11 +66,11 @@ auto ExternalMergeSortExecutor<K>::Next(Tuple *tuple, RID *rid) -> bool {
   if (current_index_ >= sorted_tuples_.size()) {
     return false;
   }
-  
+
   *tuple = sorted_tuples_[current_index_];
   *rid = RID{};  // external sort doesn't preserve original RIDs
   current_index_++;
-  
+
   return true;
 }
 

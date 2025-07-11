@@ -25,7 +25,7 @@ LimitExecutor::LimitExecutor(ExecutorContext *exec_ctx, const LimitPlanNode *pla
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
 /** Initialize the limit */
-void LimitExecutor::Init() { 
+void LimitExecutor::Init() {
   child_executor_->Init();
   count_ = 0;
 }
@@ -36,18 +36,18 @@ void LimitExecutor::Init() {
  * @param[out] rid The next tuple RID produced by the limit
  * @return `true` if a tuple was produced, `false` if there are no more tuples
  */
-auto LimitExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
+auto LimitExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   // if we've already returned the limit number of tuples, return false
   if (count_ >= plan_->GetLimit()) {
     return false;
   }
-  
+
   // try to get the next tuple from the child executor
   if (child_executor_->Next(tuple, rid)) {
     count_++;
     return true;
   }
-  
+
   // no more tuples from child executor
   return false;
 }

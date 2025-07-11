@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <memory>
+#include <memory> // NOLINT
 
 #include "execution/executors/aggregation_executor.h"
 
@@ -23,15 +23,15 @@ namespace bustub {
  * @param child_executor The child executor from which inserted tuples are pulled (may be `nullptr`)
  */
 AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const AggregationPlanNode *plan,
-                                         std::unique_ptr<AbstractExecutor> &&child_executor): 
-    AbstractExecutor(exec_ctx), 
-    plan_(plan),
-    child_executor_(std::move(child_executor)),
-    aht_(plan->GetAggregates(), plan->GetAggregateTypes()),
-    aht_iterator_(aht_.Begin()) {}
+                                         std::unique_ptr<AbstractExecutor> &&child_executor)
+    : AbstractExecutor(exec_ctx),
+      plan_(plan),
+      child_executor_(std::move(child_executor)),
+      aht_(plan->GetAggregates(), plan->GetAggregateTypes()),
+      aht_iterator_(aht_.Begin()) {}
 
 /** Initialize the aggregation */
-void AggregationExecutor::Init() { 
+void AggregationExecutor::Init() {
   child_executor_->Init();
   aht_.Clear();
 
@@ -47,7 +47,7 @@ void AggregationExecutor::Init() {
   // we still need to return one row with initial aggregate values
   if (aht_.Begin() == aht_.End() && plan_->GetGroupBys().empty()) {
     // create a single group with empty key and initial aggregate values
-    AggregateKey empty_key{{}}; // empty group by key
+    AggregateKey empty_key{{}};  // empty group by key
     aht_.InsertInitial(empty_key);
   }
 
@@ -61,7 +61,7 @@ void AggregationExecutor::Init() {
  * @return `true` if a tuple was produced, `false` if there are no more tuples
  */
 
-auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
+auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (aht_iterator_ == aht_.End()) {
     return false;
   }
@@ -70,18 +70,18 @@ auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   const AggregateValue &agg_val = aht_iterator_.Val();
 
   std::vector<Value> output_values;
-  
+
   for (const auto &group_by_val : agg_key.group_bys_) {
     output_values.push_back(group_by_val);
   }
-  
+
   for (const auto &agg_result : agg_val.aggregates_) {
     output_values.push_back(agg_result);
   }
 
   *tuple = Tuple(output_values, &GetOutputSchema());
   *rid = RID{};
-  
+
   ++aht_iterator_;
   return true;
 }

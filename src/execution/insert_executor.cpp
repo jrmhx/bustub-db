@@ -39,7 +39,7 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
 }
 
 /** Initialize the insert */
-void InsertExecutor::Init() { 
+void InsertExecutor::Init() {
   child_executor_->Init();
   produced_ = false;
 }
@@ -60,18 +60,16 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   int inserted = 0;
   Tuple t;
   RID r;
-  while (child_executor_->Next(&t, &r)){
+  while (child_executor_->Next(&t, &r)) {
     TupleMeta meta{exec_ctx_->GetTransaction()->GetTransactionId(), false};
     auto rid_opt = table_info_->table_->InsertTuple(meta, t);
     if (rid_opt != std::nullopt) {
-      auto * txn = exec_ctx_->GetTransaction();
+      auto *txn = exec_ctx_->GetTransaction();
       auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
       for (auto index_info : indexes) {
         index_info->index_->InsertEntry(
-          t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
-          rid_opt.value(), 
-          txn
-        );
+            t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
+            rid_opt.value(), txn);
       }
       ++inserted;
     } else {

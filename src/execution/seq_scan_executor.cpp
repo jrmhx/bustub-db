@@ -33,7 +33,7 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
 }
 
 /** Initialize the sequential scan */
-void SeqScanExecutor::Init() { 
+void SeqScanExecutor::Init() {
   // init the table iterator
   auto table_oid = plan_->GetTableOid();
   auto *catalog = exec_ctx_->GetCatalog();
@@ -49,12 +49,12 @@ void SeqScanExecutor::Init() {
  * @param[out] rid The next tuple RID produced by the scan
  * @return `true` if a tuple was produced, `false` if there are no more tuples
  */
-auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {  
+auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (table_iter_ == nullptr) {
     return false;
   }
 
-  while(!table_iter_->IsEnd()) {
+  while (!table_iter_->IsEnd()) {
     auto [meta, t] = table_iter_->GetTuple();
     *rid = table_iter_->GetRID();
     ++(*table_iter_);

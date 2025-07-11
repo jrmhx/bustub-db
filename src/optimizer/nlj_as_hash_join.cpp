@@ -29,8 +29,7 @@ namespace bustub {
  * @param right_keys Output vector for right side join keys
  * @return true if the expression contains equi-join conditions, false otherwise
  */
-auto ExtractEquiJoinConditions(const AbstractExpression *expr,
-                               std::vector<AbstractExpressionRef> &left_keys,
+auto ExtractEquiJoinConditions(const AbstractExpression *expr, std::vector<AbstractExpressionRef> &left_keys,
                                std::vector<AbstractExpressionRef> &right_keys) -> bool {
   if (expr == nullptr) {
     return false;
@@ -39,24 +38,22 @@ auto ExtractEquiJoinConditions(const AbstractExpression *expr,
   // handle AND expressions - recursively extract from both sides
   if (const auto *logic_expr = dynamic_cast<const LogicExpression *>(expr);
       logic_expr != nullptr && logic_expr->logic_type_ == LogicType::And) {
-    
     bool left_has_equi = ExtractEquiJoinConditions(logic_expr->GetChildAt(0).get(), left_keys, right_keys);
     bool right_has_equi = ExtractEquiJoinConditions(logic_expr->GetChildAt(1).get(), left_keys, right_keys);
-    
+
     return left_has_equi || right_has_equi;
   }
-  
+
   // handle equality comparisons
   if (const auto *comp_expr = dynamic_cast<const ComparisonExpression *>(expr);
       comp_expr != nullptr && comp_expr->comp_type_ == ComparisonType::Equal) {
-    
     const auto *left_expr = comp_expr->GetChildAt(0).get();
     const auto *right_expr = comp_expr->GetChildAt(1).get();
-    
+
     // check for column-to-column equality conditions
     const auto *left_col = dynamic_cast<const ColumnValueExpression *>(left_expr);
     const auto *right_col = dynamic_cast<const ColumnValueExpression *>(right_expr);
-    
+
     if (left_col != nullptr && right_col != nullptr) {
       // ensure columns are from different tables (tuple_idx 0 and 1)
       if (left_col->GetTupleIdx() != right_col->GetTupleIdx()) {
@@ -74,7 +71,7 @@ auto ExtractEquiJoinConditions(const AbstractExpression *expr,
       }
     }
   }
-  
+
   return false;
 }
 
@@ -89,33 +86,28 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
   for (const auto &child : plan->GetChildren()) {
     children.emplace_back(OptimizeNLJAsHashJoin(child));
   }
-  
+
   auto optimized_plan = plan->CloneWithChildren(std::move(children));
-  
+
   // check if this is a NestedLoopJoin that can be converted to HashJoin
   if (optimized_plan->GetType() == PlanType::NestedLoopJoin) {
     const auto &nlj_plan = dynamic_cast<const NestedLoopJoinPlanNode &>(*optimized_plan);
-    
+
     // extract equi-join conditions from the predicate
     std::vector<AbstractExpressionRef> left_keys;
     std::vector<AbstractExpressionRef> right_keys;
-    
+
     bool has_equi_conditions = ExtractEquiJoinConditions(nlj_plan.Predicate().get(), left_keys, right_keys);
-    
+
     // only convert to hash join if we found equi-join conditions
     if (has_equi_conditions && !left_keys.empty() && !right_keys.empty()) {
       // create a HashJoin plan with the same output schema, children, and join type
-      return std::make_shared<HashJoinPlanNode>(
-          optimized_plan->output_schema_,
-          nlj_plan.GetLeftPlan(),
-          nlj_plan.GetRightPlan(),
-          std::move(left_keys),
-          std::move(right_keys),
-          nlj_plan.GetJoinType()
-      );
+      return std::make_shared<HashJoinPlanNode>(optimized_plan->output_schema_, nlj_plan.GetLeftPlan(),
+                                                nlj_plan.GetRightPlan(), std::move(left_keys), std::move(right_keys),
+                                                nlj_plan.GetJoinType());
     }
   }
-  
+
   // return the original plan if no optimization is possible
   return optimized_plan;
 }

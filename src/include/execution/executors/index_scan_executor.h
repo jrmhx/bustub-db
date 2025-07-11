@@ -43,18 +43,18 @@ class IndexScanExecutor : public AbstractExecutor {
 
   const TableInfo *table_info_;
 
-  BPlusTreeIndexForTwoIntegerColumn * tree_{nullptr};
-  
+  BPlusTreeIndexForTwoIntegerColumn *tree_{nullptr};
+
   /** Iterator state for full index scans */
   BPlusTreeIndexIteratorForTwoIntegerColumn idx_iter_;
 
   std::vector<RID> pt_lkup_res_;
 
   std::vector<RID>::iterator pt_lkup_iter_;
-  
+
   /** Helper method for point lookup using pred_keys_ */
   auto HandlePointLookup(Tuple *tuple, RID *rid) -> bool;
-  
+
   /** Helper method for full index scan */
   auto HandleFullScan(Tuple *tuple, RID *rid) -> bool;
 };

@@ -30,7 +30,7 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
     : AbstractExecutor(exec_ctx) {
   BUSTUB_ASSERT(plan != nullptr, "invalid plan");
   plan_ = plan;
-  auto * catalog = exec_ctx->GetCatalog();
+  auto *catalog = exec_ctx->GetCatalog();
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
   table_info_ = catalog->GetTable(plan_->GetTableOid()).get();
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table_info");
@@ -38,7 +38,7 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
 }
 
 /** Initialize the update */
-void UpdateExecutor::Init() { 
+void UpdateExecutor::Init() {
   child_executor_->Init();
   produced_ = false;
 }
@@ -72,7 +72,8 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       values.push_back(expr->Evaluate(&t, table_info_->schema_));
     }
     Tuple new_tuple(values, &table_info_->schema_);
-    auto new_rid = table_info_->table_->InsertTuple(TupleMeta{exec_ctx_->GetTransaction()->GetTransactionId(), false}, new_tuple);
+    auto new_rid =
+        table_info_->table_->InsertTuple(TupleMeta{exec_ctx_->GetTransaction()->GetTransactionId(), false}, new_tuple);
     ++updated;
     // update all indexes
     if (new_rid.has_value()) {
@@ -81,15 +82,10 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       for (auto &index_info : indexes) {
         //++updated;
         index_info->index_->DeleteEntry(
-          t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
-          r, 
-          txn
-        );
+            t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), r, txn);
         index_info->index_->InsertEntry(
-          new_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
-          new_rid.value(), 
-          txn
-        );
+            new_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
+            new_rid.value(), txn);
       }
     } else {
       return false;

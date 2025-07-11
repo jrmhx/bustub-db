@@ -145,13 +145,13 @@ class ExternalMergeSortExecutor : public AbstractExecutor {
 
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
-  
+
   /** All sorted tuples (for simplified implementation) */
   std::vector<Tuple> sorted_tuples_;
-  
+
   /** Current position in sorted tuples */
   size_t current_index_{0};
-  
+
   /** Whether initialization is complete */
   bool initialized_{false};
 };

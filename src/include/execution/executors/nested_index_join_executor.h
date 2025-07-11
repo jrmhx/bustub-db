@@ -39,28 +39,28 @@ class NestedIndexJoinExecutor : public AbstractExecutor {
  private:
   /** The nested index join plan node. */
   const NestedIndexJoinPlanNode *plan_;
-  
+
   /** The child executor (outer table). */
   std::unique_ptr<AbstractExecutor> child_executor_;
-  
+
   /** Current outer tuple. */
   Tuple outer_tuple_;
-  
+
   /** Current outer tuple RID. */
   RID outer_rid_;
-  
+
   /** Whether we have a valid outer tuple. */
   bool outer_tuple_ready_{false};
-  
+
   /** Whether the current outer tuple has been matched (for LEFT JOIN). */
   bool outer_matched_{false};
-  
+
   /** RIDs of inner tuples matching the current outer tuple. */
   std::vector<RID> inner_rids_;
-  
+
   /** Current index in inner_rids_ vector. */
   size_t inner_rid_idx_{0};
-  
+
   /** Helper method to find inner matches for the current outer tuple. */
   void FindInnerMatches();
 };

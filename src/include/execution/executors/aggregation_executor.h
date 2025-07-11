@@ -12,9 +12,9 @@
 
 #pragma once
 
-#include <memory>
-#include <unordered_map>
-#include <vector>
+#include <memory> // NOLINT
+#include <unordered_map> // NOLINT
+#include <vector> // NOLINT
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
@@ -133,9 +133,7 @@ class SimpleAggregationHashTable {
    * Used for empty table case where we need default values.
    * @param agg_key the key to be inserted
    */
-  void InsertInitial(const AggregateKey &agg_key) {
-    ht_.insert({agg_key, GenerateInitialAggregateValue()});
-  }
+  void InsertInitial(const AggregateKey &agg_key) { ht_.insert({agg_key, GenerateInitialAggregateValue()}); }
 
   /**
    * Clear the hash table

@@ -27,31 +27,31 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
     : AbstractExecutor(exec_ctx) {
   BUSTUB_ASSERT(plan != nullptr, "invalid plan");
   plan_ = plan;
-  auto * catalog = exec_ctx->GetCatalog();
+  auto *catalog = exec_ctx->GetCatalog();
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
   table_info_ = catalog->GetTable(plan_->table_oid_).get();
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table_info");
 }
 
-void IndexScanExecutor::Init() {  
+void IndexScanExecutor::Init() {
   auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
   tree_ = dynamic_cast<BPlusTreeIndexForTwoIntegerColumn *>(index_info->index_.get());
   // init idx iterator state for full scan
   if (tree_ != nullptr && plan_->pred_keys_.empty()) {
     idx_iter_ = tree_->GetBeginIterator();
-  } else { // point lookup 
+  } else {  // point lookup
     // evaluate pred_keys_ expressions to get actual values
     std::vector<Value> key_values;
     key_values.reserve(plan_->pred_keys_.size());
-    
+
     for (const auto &expr : plan_->pred_keys_) {
       // evaluate the expression (these should be constant values for point lookup)
       Value value = expr->Evaluate(nullptr, GetOutputSchema());
       key_values.push_back(value);
     }
-    
+
     auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
-    
+
     Tuple key_tuple(key_values, &index_info->key_schema_);
     pt_lkup_res_.clear();
     // use the index's ScanKey method for efficient point lookup
@@ -60,11 +60,11 @@ void IndexScanExecutor::Init() {
   }
 }
 
-auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
+auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (tree_ == nullptr) {
     return false;
   }
-  
+
   // check if we have predicate keys for point lookup
   if (!plan_->pred_keys_.empty()) {
     return HandlePointLookup(tuple, rid);
@@ -75,7 +75,7 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 }
 
 auto IndexScanExecutor::HandlePointLookup(Tuple *tuple, RID *rid) -> bool {
-  while(pt_lkup_iter_ != pt_lkup_res_.end()) {
+  while (pt_lkup_iter_ != pt_lkup_res_.end()) {
     const auto r = *pt_lkup_iter_;
     ++pt_lkup_iter_;
 
@@ -85,7 +85,7 @@ auto IndexScanExecutor::HandlePointLookup(Tuple *tuple, RID *rid) -> bool {
     auto tuple_meta = table_info_->table_->GetTupleMeta(r);
     if (!tuple_meta.is_deleted_) {
       const auto [meta, t] = table_info_->table_->GetTuple(r);
-      
+
       if (plan_->filter_predicate_ != nullptr) {
         auto result = plan_->filter_predicate_->Evaluate(&t, GetOutputSchema());
         if (!result.GetAs<bool>()) {
@@ -105,22 +105,22 @@ auto IndexScanExecutor::HandleFullScan(Tuple *tuple, RID *rid) -> bool {
   if (tree_ == nullptr) {
     return false;
   }
-  
+
   // use member iterator that maintains state across calls
   while (!idx_iter_.IsEnd()) {
     // extract RID as a copy to avoid reference invalidation when iterator advances
     const auto r = (*idx_iter_).second;
     ++idx_iter_;
-    
+
     // validate the RID before using it
     if (r.GetPageId() == INVALID_PAGE_ID) {
       continue;
     }
-    
+
     auto tuple_meta = table_info_->table_->GetTupleMeta(r);
     if (!tuple_meta.is_deleted_) {
       const auto [meta, t] = table_info_->table_->GetTuple(r);
-      
+
       if (plan_->filter_predicate_ != nullptr) {
         auto result = plan_->filter_predicate_->Evaluate(&t, GetOutputSchema());
         if (!result.GetAs<bool>()) {
@@ -132,7 +132,7 @@ auto IndexScanExecutor::HandleFullScan(Tuple *tuple, RID *rid) -> bool {
       return true;
     }
   }
-  
+
   return false;
 }
 

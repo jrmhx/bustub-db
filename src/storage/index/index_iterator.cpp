@@ -47,8 +47,8 @@ INDEXITERATOR_TYPE::IndexIterator(BufferPoolManager *bpm, ReadPageGuard rpg, int
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::IndexIterator(IndexIterator &&other) noexcept
-    : bpm_(other.bpm_), 
-      rpg_(std::move(other.rpg_)), 
+    : bpm_(other.bpm_),
+      rpg_(std::move(other.rpg_)),
       curr_leaf_page_(other.curr_leaf_page_),
       curr_pos_(other.curr_pos_),
       is_valid_(other.is_valid_) {
@@ -67,7 +67,7 @@ auto INDEXITERATOR_TYPE::operator=(IndexIterator &&other) noexcept -> IndexItera
     curr_leaf_page_ = other.curr_leaf_page_;
     curr_pos_ = other.curr_pos_;
     is_valid_ = other.is_valid_;
-    
+
     // Reset the moved-from object
     other.bpm_ = nullptr;
     other.curr_leaf_page_ = nullptr;

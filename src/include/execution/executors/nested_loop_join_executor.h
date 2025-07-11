@@ -43,7 +43,7 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
 
   std::unique_ptr<AbstractExecutor> left_executor_;
   std::unique_ptr<AbstractExecutor> right_executor_;
-  
+
   /** State for nested loop join iteration */
   Tuple left_tuple_;
   RID left_rid_;

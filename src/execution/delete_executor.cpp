@@ -29,7 +29,7 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
     : AbstractExecutor(exec_ctx) {
   BUSTUB_ASSERT(plan != nullptr, "invalid plan");
   plan_ = plan;
-  auto * catalog = exec_ctx->GetCatalog();
+  auto *catalog = exec_ctx->GetCatalog();
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
   table_info_ = catalog->GetTable(plan_->GetTableOid()).get();
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table_info");
@@ -37,7 +37,7 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
 }
 
 /** Initialize the delete */
-void DeleteExecutor::Init() { 
+void DeleteExecutor::Init() {
   child_executor_->Init();
   produced_ = false;
 }
@@ -64,12 +64,9 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     table_info_->table_->UpdateTupleMeta(meta, r);
     auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
     auto *txn = exec_ctx_->GetTransaction();
-    for (auto & index_info : indexes) {
+    for (auto &index_info : indexes) {
       index_info->index_->DeleteEntry(
-        t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
-        r, 
-        txn
-      );
+          t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), r, txn);
     }
     ++deleted;
   }
