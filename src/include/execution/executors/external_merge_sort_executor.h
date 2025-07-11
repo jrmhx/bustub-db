@@ -14,13 +14,15 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
+#include "buffer/buffer_pool_manager.h"
 #include "common/config.h"
-#include "common/macros.h"
 #include "execution/execution_common.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/sort_plan.h"
+#include "storage/page/page_guard.h"
 #include "storage/table/tuple.h"
 
 namespace bustub {
@@ -32,15 +34,36 @@ namespace bustub {
  */
 class SortPage {
  public:
-  /**
-   * TODO(P3): Define and implement the methods for reading data from and writing data to the sort
-   * page. Feel free to add other helper methods.
-   */
+  void Init();
+
+  /** Add a tuple to this sort page */
+  auto InsertTuple(const Tuple &tuple) -> bool;
+
+  /** Get tuple at the given index */
+  auto GetTuple(size_t index, const Schema &schema) const -> Tuple;
+
+  /** Get the number of tuples in this page */
+  auto GetTupleCount() const -> size_t;
+
+  /** Check if this page can hold another tuple */
+  auto CanInsertTuple(const Tuple &tuple) -> bool;
+
+  /** Get the underlying page data */
+  auto GetData() -> char * { return data_; }
+
  private:
-  /**
-   * TODO(P3): Define the private members. You may want to have some necessary metadata for
-   * the sort page before the start of the actual data.
-   */
+  /** Page header containing metadata */
+  struct PageHeader {
+    size_t tuple_count_{0};
+    size_t next_tuple_offset_{sizeof(PageHeader)};
+  };
+
+  /** Raw page data */
+  char data_[BUSTUB_PAGE_SIZE];
+
+  /** Get the page header */
+  auto GetHeader() -> PageHeader * { return reinterpret_cast<PageHeader *>(data_); }
+  auto GetHeader() const -> const PageHeader * { return reinterpret_cast<const PageHeader *>(data_); }
 };
 
 /**
@@ -50,10 +73,12 @@ class SortPage {
  */
 class MergeSortRun {
  public:
-  MergeSortRun() = default;
-  MergeSortRun(std::vector<page_id_t> pages, BufferPoolManager *bpm) : pages_(std::move(pages)), bpm_(bpm) {}
+  MergeSortRun(std::vector<page_id_t> pages, BufferPoolManager *bpm, Schema schema)
+      : pages_(std::move(pages)), bpm_(bpm), schema_(std::move(schema)) {}
 
   auto GetPageCount() -> size_t { return pages_.size(); }
+
+  auto GetSchema() const -> const Schema & { return schema_; }
 
   /** Iterator for iterating on the sorted tuples in one run. */
   class Iterator {
@@ -62,60 +87,47 @@ class MergeSortRun {
    public:
     Iterator() = default;
 
-    /**
-     * Advance the iterator to the next tuple. If the current sort page is exhausted, move to the
-     * next sort page.
-     */
-    auto operator++() -> Iterator & { UNIMPLEMENTED("TODO(P3): Add implementation."); }
+    auto operator++() -> Iterator &;
 
-    /**
-     * Dereference the iterator to get the current tuple in the sorted run that the iterator is
-     * pointing to.
-     */
-    auto operator*() -> Tuple { UNIMPLEMENTED("TODO(P3): Add implementation."); }
+    auto operator*() -> Tuple;
 
-    /**
-     * Checks whether two iterators are pointing to the same tuple in the same sorted run.
-     */
-    auto operator==(const Iterator &other) const -> bool { UNIMPLEMENTED("TODO(P3): Add implementation."); }
+    auto operator==(const Iterator &other) const -> bool;
 
-    /**
-     * Checks whether two iterators are pointing to different tuples in a sorted run or iterating
-     * on different sorted runs.
-     */
-    auto operator!=(const Iterator &other) const -> bool { UNIMPLEMENTED("TODO(P3): Add implementation."); }
+    auto operator!=(const Iterator &other) const -> bool;
 
    private:
-    explicit Iterator(const MergeSortRun *run) : run_(run) {}
+    explicit Iterator(const MergeSortRun *run, size_t page_idx = 0, size_t tuple_idx = 0)
+        : run_(run), page_idx_(page_idx), tuple_idx_(tuple_idx) {}
 
-    /** The sorted run that the iterator is iterating on. */
-    [[maybe_unused]] const MergeSortRun *run_;
+    /** the sorted run that the iterator is iterating on. */
+    const MergeSortRun *run_{nullptr};
 
-    /**
-     * TODO(P3): Add your own private members here. You may want something to record your current
-     * position in the sorted run. Also feel free to add additional constructors to initialize
-     * your private members.
-     */
+    /** current page index in the run */
+    size_t page_idx_{0};
+
+    /** current tuple index within the current page */
+    size_t tuple_idx_{0};
+
+    /** page guard for the current page */
+    mutable std::optional<ReadPageGuard> page_guard_;
+
+    void LoadCurrentPage() const;
   };
 
-  /**
-   * Get an iterator pointing to the beginning of the sorted run, i.e. the first tuple.
-   */
-  auto Begin() -> Iterator { UNIMPLEMENTED("TODO(P3): Add implementation."); }
+  auto Begin() -> Iterator { return Iterator{this, 0, 0}; }
 
-  /**
-   * Get an iterator pointing to the end of the sorted run, i.e. the position after the last tuple.
-   */
-  auto End() -> Iterator { UNIMPLEMENTED("TODO(P3): Add implementation."); }
+  auto End() -> Iterator { return Iterator{this, pages_.size(), 0}; }
 
  private:
-  /** The page IDs of the sort pages that store the sorted tuples. */
+  /** the page IDs of the sort pages that store the sorted tuples. */
   std::vector<page_id_t> pages_;
   /**
-   * The buffer pool manager used to read sort pages. The buffer pool manager is responsible for
+   * the buffer pool manager used to read sort pages. The buffer pool manager is responsible for
    * deleting the sort pages when they are no longer needed.
    */
-  [[maybe_unused]] BufferPoolManager *bpm_;
+  BufferPoolManager *bpm_{nullptr};
+
+  Schema schema_;
 };
 
 /**
@@ -146,14 +158,23 @@ class ExternalMergeSortExecutor : public AbstractExecutor {
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
 
-  /** All sorted tuples (for simplified implementation) */
-  std::vector<Tuple> sorted_tuples_;
+  /** Sorted runs created during external merge sort */
+  std::vector<MergeSortRun> sorted_runs_;
 
-  /** Current position in sorted tuples */
-  size_t current_index_{0};
+  /** Current iterator position in the final merged run */
+  MergeSortRun::Iterator current_iterator_;
 
   /** Whether initialization is complete */
   bool initialized_{false};
+
+  /** Helper method to generate sorted runs from input data */
+  void GenerateSortedRuns();
+
+  /** Helper method to merge K sorted runs into fewer runs */
+  void MergeRuns();
+
+  /** Helper method to create sort pages from sorted entries */
+  void CreateSortPages(const std::vector<SortEntry> &entries, std::vector<page_id_t> &pages, const Schema &schema);
 };
 
 }  // namespace bustub
