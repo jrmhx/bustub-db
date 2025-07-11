@@ -181,7 +181,7 @@ void ExternalMergeSortExecutor<K>::GenerateSortedRuns() {
 
   // buffer to accumulate tuples for each run
   // use a conservative estimate: assume each tuple is ~100 bytes average
-  const size_t MAX_TUPLES_PER_RUN = (BUFFER_POOL_SIZE * BUSTUB_PAGE_SIZE) / 200; // NOLINT
+  const size_t MAX_TUPLES_PER_RUN = (BUFFER_POOL_SIZE * BUSTUB_PAGE_SIZE) / 200;  // NOLINT
 
   while (child_executor_->Next(&tuple, &rid)) {
     auto sort_key = GenerateSortKey(tuple, plan_->GetOrderBy(), schema);

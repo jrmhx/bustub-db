@@ -76,16 +76,16 @@ class MergeSortRun {
   MergeSortRun(std::vector<page_id_t> pages, BufferPoolManager *bpm, Schema schema)
       : pages_(std::move(pages)), bpm_(bpm), schema_(std::move(schema)) {}
 
-  // Move constructor
-  MergeSortRun(MergeSortRun&& other) noexcept 
+  // move constructor
+  MergeSortRun(MergeSortRun &&other) noexcept
       : pages_(std::move(other.pages_)), bpm_(other.bpm_), schema_(std::move(other.schema_)) {
     other.bpm_ = nullptr;  // prevent double deletion
   }
 
-  // Move assignment operator
-  MergeSortRun& operator=(MergeSortRun&& other) noexcept {
+  // move assignment operator
+  auto operator=(MergeSortRun &&other) noexcept -> MergeSortRun & {
     if (this != &other) {
-      // Clean up current pages before moving
+      // clean up current pages before moving
       DeletePages();
       pages_ = std::move(other.pages_);
       bpm_ = other.bpm_;
@@ -95,21 +95,18 @@ class MergeSortRun {
     return *this;
   }
 
-  // Destructor to clean up pages
-  ~MergeSortRun() {
-    DeletePages();
-  }
+  ~MergeSortRun() { DeletePages(); }
 
-  // Delete copy constructor and copy assignment to prevent issues
-  MergeSortRun(const MergeSortRun&) = delete;
-  MergeSortRun& operator=(const MergeSortRun&) = delete;
+  // delete copy constructor and copy assignment to prevent issues
+  MergeSortRun(const MergeSortRun &) = delete;
+  auto operator=(const MergeSortRun &) -> MergeSortRun & = delete;
 
   auto GetPageCount() -> size_t { return pages_.size(); }
 
   auto GetSchema() const -> const Schema & { return schema_; }
 
  private:
-  // Helper method to delete all pages in this run
+  // helper method to delete all pages in this run
   void DeletePages() {
     if (bpm_ != nullptr) {
       for (auto page_id : pages_) {
@@ -119,7 +116,6 @@ class MergeSortRun {
   }
 
  public:
-
   /** Iterator for iterating on the sorted tuples in one run. */
   class Iterator {
     friend class MergeSortRun;
