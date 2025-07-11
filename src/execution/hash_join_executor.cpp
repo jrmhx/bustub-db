@@ -29,10 +29,7 @@ HashJoinExecutor::HashJoinExecutor(ExecutorContext *exec_ctx, const HashJoinPlan
     : AbstractExecutor(exec_ctx),
       plan_(plan),
       left_child_(std::move(left_child)),
-      right_child_(std::move(right_child)),
-      right_tuple_matched_(false),
-      right_tuple_ready_(false),
-      processing_unmatched_left_(false) {
+      right_child_(std::move(right_child)) {
   if (!(plan->GetJoinType() == JoinType::LEFT || plan->GetJoinType() == JoinType::INNER)) {
     // Note for Spring 2025: You ONLY need to implement left join and inner join.
     throw bustub::NotImplementedException(fmt::format("join type {} not supported", plan->GetJoinType()));

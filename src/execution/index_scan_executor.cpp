@@ -68,7 +68,7 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   // check if we have predicate keys for point lookup
   if (!plan_->pred_keys_.empty()) {
     return HandlePointLookup(tuple, rid);
-  } else {
+  } else {  // NOLINT
     // full index scan
     return HandleFullScan(tuple, rid);
   }

@@ -66,7 +66,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     // apply filter predicate
     if (plan_->filter_predicate_ != nullptr) {
       auto val = plan_->filter_predicate_->Evaluate(&t, plan_->OutputSchema());
-      if (!val.IsNull() && val.GetAs<bool>() == true) {
+      if (!val.IsNull() && val.GetAs<bool>()) {
         *tuple = t;
         return true;
       }

@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <memory> // NOLINT
+#include <memory>  // NOLINT
 
 #include "execution/executors/aggregation_executor.h"
 

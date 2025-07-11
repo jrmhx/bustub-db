@@ -43,7 +43,7 @@ auto TupleComparator::operator()(const SortEntry &entry_a, const SortEntry &entr
 
     if (order_by.first == OrderByType::ASC || order_by.first == OrderByType::DEFAULT) {
       return less_than == CmpBool::CmpTrue;
-    } else {  // DESC
+    } else {  // NOLINT DESC
       return less_than == CmpBool::CmpFalse;
     }
   }

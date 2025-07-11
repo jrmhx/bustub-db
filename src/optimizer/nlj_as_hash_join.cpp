@@ -62,7 +62,7 @@ auto ExtractEquiJoinConditions(const AbstractExpression *expr, std::vector<Abstr
           left_keys.push_back(comp_expr->GetChildAt(0));
           right_keys.push_back(comp_expr->GetChildAt(1));
           return true;
-        } else if (left_col->GetTupleIdx() == 1 && right_col->GetTupleIdx() == 0) {
+        } else if (left_col->GetTupleIdx() == 1 && right_col->GetTupleIdx() == 0) {  // NOLINT
           // right table column = left table column
           left_keys.push_back(comp_expr->GetChildAt(1));
           right_keys.push_back(comp_expr->GetChildAt(0));

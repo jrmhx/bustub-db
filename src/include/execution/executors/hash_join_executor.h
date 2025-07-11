@@ -83,10 +83,10 @@ class HashJoinExecutor : public AbstractExecutor {
   std::vector<Tuple>::const_iterator left_matches_end_;
 
   /** Whether current right tuple has been matched (for LEFT JOIN) */
-  bool right_tuple_matched_;
+  bool right_tuple_matched_{false};
 
   /** Whether we have a valid right tuple ready */
-  bool right_tuple_ready_;
+  bool right_tuple_ready_{false};
 
   /** For LEFT JOIN: set of left tuples that have been matched */
   std::unordered_set<const Tuple *> matched_left_tuples_;
@@ -98,7 +98,7 @@ class HashJoinExecutor : public AbstractExecutor {
   std::vector<Tuple>::const_iterator unmatched_left_tuple_it_;
 
   /** For LEFT JOIN: whether we're processing unmatched left tuples */
-  bool processing_unmatched_left_;
+  bool processing_unmatched_left_{false};
 };
 
 }  // namespace bustub

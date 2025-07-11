@@ -66,7 +66,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     if (rid_opt != std::nullopt) {
       auto *txn = exec_ctx_->GetTransaction();
       auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-      for (auto index_info : indexes) {
+      for (const auto &index_info : indexes) {
         index_info->index_->InsertEntry(
             t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
             rid_opt.value(), txn);

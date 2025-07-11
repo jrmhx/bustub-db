@@ -64,4 +64,8 @@ class NestedIndexJoinExecutor : public AbstractExecutor {
   /** Helper method to find inner matches for the current outer tuple. */
   void FindInnerMatches();
 };
+
+/** for the old codebase type name */
+using NestIndexJoinExecutor = NestedIndexJoinExecutor;
+
 }  // namespace bustub
