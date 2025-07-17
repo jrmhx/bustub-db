@@ -29,31 +29,27 @@ namespace bustub {
 auto ExtractOrEqualityConstants(const AbstractExpression *expr, uint32_t target_col_idx) -> std::vector<Value> {
   std::vector<Value> values;
 
-  // Check if this is a logic expression with OR
+  // check if this is a logic expression with OR
   if (const auto *logic_expr = dynamic_cast<const LogicExpression *>(expr);
       logic_expr != nullptr && logic_expr->logic_type_ == LogicType::Or) {
     const auto *left_expr = logic_expr->GetChildAt(0).get();
     const auto *right_expr = logic_expr->GetChildAt(1).get();
 
-    // Recursively extract values from left side
+    // recursively extract values from left and right side
     auto left_values = ExtractOrEqualityConstants(left_expr, target_col_idx);
-
-    // Recursively extract values from right side
     auto right_values = ExtractOrEqualityConstants(right_expr, target_col_idx);
 
-    // If both sides have values, combine them
+    // if both sides have values, combine them
     if (!left_values.empty() && !right_values.empty()) {
       values.insert(values.end(), left_values.begin(), left_values.end());
       values.insert(values.end(), right_values.begin(), right_values.end());
     }
-  }
-  // Check if this is a single equality comparison
-  else if (const auto *comp_expr = dynamic_cast<const ComparisonExpression *>(expr);
+  } else if (const auto *comp_expr = dynamic_cast<const ComparisonExpression *>(expr);
            comp_expr != nullptr && comp_expr->comp_type_ == ComparisonType::Equal) {
+    // check if this is a single equality comparison (column = constant or constant = column)
     const auto *left_expr = comp_expr->GetChildAt(0).get();
     const auto *right_expr = comp_expr->GetChildAt(1).get();
 
-    // Check for column = constant or constant = column pattern
     if (const auto *left_col = dynamic_cast<const ColumnValueExpression *>(left_expr);
         left_col != nullptr && left_col->GetTupleIdx() == 0 && left_col->GetColIdx() == target_col_idx) {
       if (const auto *right_const = dynamic_cast<const ConstantValueExpression *>(right_expr); right_const != nullptr) {
@@ -74,9 +70,6 @@ auto ExtractOrEqualityConstants(const AbstractExpression *expr, uint32_t target_
  * @brief Optimizes seq scan as index scan if there's an index on a table
  */
 auto Optimizer::OptimizeSeqScanAsIndexScan(const bustub::AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef {
-  // implement seq scan with predicate -> index scan optimizer rule
-  // filter predicate pushdown has been enabled for you in optimizer.cpp when forcing starter rule
-
   // recursively optimize children first
   std::vector<AbstractPlanNodeRef> children;
   for (const auto &child : plan->GetChildren()) {
@@ -85,40 +78,32 @@ auto Optimizer::OptimizeSeqScanAsIndexScan(const bustub::AbstractPlanNodeRef &pl
 
   auto optimized_plan = plan->CloneWithChildren(std::move(children));
 
-  // check if this is a SeqScan with a filter predicate
   if (optimized_plan->GetType() == PlanType::SeqScan) {
     const auto &seq_scan_plan = dynamic_cast<const SeqScanPlanNode &>(*optimized_plan);
 
     // only optimize if there's a filter predicate
     if (seq_scan_plan.filter_predicate_ != nullptr) {
-      // First, try to optimize OR conditions like (col = val1 OR col = val2)
-      // Check each column for OR optimization
       for (uint32_t col_idx = 0; col_idx < seq_scan_plan.output_schema_->GetColumnCount(); col_idx++) {
         auto or_values = ExtractOrEqualityConstants(seq_scan_plan.filter_predicate_.get(), col_idx);
 
-        if (or_values.size() > 1) {  // Found OR condition with multiple values
+        if (or_values.size() > 1) {  // found OR condition with multiple values
           if (auto index = MatchIndex(seq_scan_plan.table_name_, col_idx); index != std::nullopt) {
             auto [index_oid, index_name] = index.value();
 
-            // Create IndexScan with full scan but keep the OR filter predicate
-            // This is more efficient than SeqScan because we're using the index structure
             return std::make_shared<IndexScanPlanNode>(
                 seq_scan_plan.output_schema_, seq_scan_plan.table_oid_, index_oid,
-                seq_scan_plan.filter_predicate_,      // Keep the OR filter predicate
-                std::vector<AbstractExpressionRef>{}  // Empty pred_keys for full index scan
+                seq_scan_plan.filter_predicate_,      
+                std::vector<AbstractExpressionRef>{} 
             );
           }
         }
       }
 
-      // Fall back to single equality optimization
-      // check if the predicate is an equality comparison with a constant
+      // fall back to single equality optimization
       if (const auto *comp_expr = dynamic_cast<const ComparisonExpression *>(seq_scan_plan.filter_predicate_.get());
           comp_expr != nullptr && comp_expr->comp_type_ == ComparisonType::Equal) {
         const auto *left_expr = comp_expr->GetChildAt(0).get();
         const auto *right_expr = comp_expr->GetChildAt(1).get();
-
-        // check if we have column = constant or constant = column pattern
         const ColumnValueExpression *column_expr = nullptr;
         const ConstantValueExpression *const_expr = nullptr;
 
@@ -138,7 +123,6 @@ auto Optimizer::OptimizeSeqScanAsIndexScan(const bustub::AbstractPlanNodeRef &pl
           }
         }
 
-        // if we found a suitable pattern, check for matching index
         if (column_expr != nullptr && const_expr != nullptr) {
           if (auto index = MatchIndex(seq_scan_plan.table_name_, column_expr->GetColIdx()); index != std::nullopt) {
             auto [index_oid, index_name] = index.value();
@@ -149,7 +133,7 @@ auto Optimizer::OptimizeSeqScanAsIndexScan(const bustub::AbstractPlanNodeRef &pl
 
             return std::make_shared<IndexScanPlanNode>(
                 seq_scan_plan.output_schema_, seq_scan_plan.table_oid_, index_oid,
-                nullptr,  // no additional filter predicate needed for point lookup
+                nullptr, 
                 std::move(pred_keys));
           }
         }

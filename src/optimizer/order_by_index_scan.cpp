@@ -49,12 +49,12 @@ auto Optimizer::OptimizeOrderByAsIndexScan(const AbstractPlanNodeRef &plan) -> A
 
     std::vector<uint32_t> order_by_column_ids;
     for (const auto &[order_type, expr] : order_bys) {
-      // Order type is asc or default
+      // order type is ASC or default
       if (!(order_type == OrderByType::ASC || order_type == OrderByType::DEFAULT)) {
         return optimized_plan;
       }
 
-      // Order expression is a column value expression
+      // order expression is a column value expression
       const auto *column_value_expr = dynamic_cast<ColumnValueExpression *>(expr.get());
       if (column_value_expr == nullptr) {
         return optimized_plan;
@@ -63,8 +63,7 @@ auto Optimizer::OptimizeOrderByAsIndexScan(const AbstractPlanNodeRef &plan) -> A
       order_by_column_ids.push_back(column_value_expr->GetColIdx());
     }
 
-    // Has exactly one child
-    BUSTUB_ENSURE(optimized_plan->children_.size() == 1, "Sort with multiple children?? Impossible!");
+    BUSTUB_ENSURE(optimized_plan->children_.size() == 1, "Impossible to sort with multiple children!");
     const auto &child_plan = optimized_plan->children_[0];
 
     if (child_plan->GetType() == PlanType::SeqScan) {

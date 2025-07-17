@@ -50,7 +50,7 @@ auto ExtractEquiJoinConditions(const AbstractExpression *expr, std::vector<Abstr
     const auto *left_expr = comp_expr->GetChildAt(0).get();
     const auto *right_expr = comp_expr->GetChildAt(1).get();
 
-    // check for column-to-column equality conditions
+    // check for column-to-column equality
     const auto *left_col = dynamic_cast<const ColumnValueExpression *>(left_expr);
     const auto *right_col = dynamic_cast<const ColumnValueExpression *>(right_expr);
 
@@ -58,12 +58,10 @@ auto ExtractEquiJoinConditions(const AbstractExpression *expr, std::vector<Abstr
       // ensure columns are from different tables (tuple_idx 0 and 1)
       if (left_col->GetTupleIdx() != right_col->GetTupleIdx()) {
         if (left_col->GetTupleIdx() == 0 && right_col->GetTupleIdx() == 1) {
-          // left table column = right table column
           left_keys.push_back(comp_expr->GetChildAt(0));
           right_keys.push_back(comp_expr->GetChildAt(1));
           return true;
         } else if (left_col->GetTupleIdx() == 1 && right_col->GetTupleIdx() == 0) {  // NOLINT
-          // right table column = left table column
           left_keys.push_back(comp_expr->GetChildAt(1));
           right_keys.push_back(comp_expr->GetChildAt(0));
           return true;
@@ -93,10 +91,9 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
   if (optimized_plan->GetType() == PlanType::NestedLoopJoin) {
     const auto &nlj_plan = dynamic_cast<const NestedLoopJoinPlanNode &>(*optimized_plan);
 
-    // extract equi-join conditions from the predicate
+    // extract equi-join conditions
     std::vector<AbstractExpressionRef> left_keys;
     std::vector<AbstractExpressionRef> right_keys;
-
     bool has_equi_conditions = ExtractEquiJoinConditions(nlj_plan.Predicate().get(), left_keys, right_keys);
 
     // only convert to hash join if we found equi-join conditions
@@ -108,7 +105,6 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
     }
   }
 
-  // return the original plan if no optimization is possible
   return optimized_plan;
 }
 

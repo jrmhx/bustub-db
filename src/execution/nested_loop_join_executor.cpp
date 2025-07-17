@@ -58,14 +58,12 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     Tuple right_tuple;
     RID right_rid;
 
-    // continue iterating through right tuples
     if (right_executor_->Next(&right_tuple, &right_rid)) {
       // evaluate the join predicate
       Value predicate_result = plan_->Predicate()->EvaluateJoin(&left_tuple_, left_executor_->GetOutputSchema(),
                                                                 &right_tuple, right_executor_->GetOutputSchema());
 
       if (!predicate_result.IsNull() && predicate_result.GetAs<bool>()) {
-        // has a match
         std::vector<Value> output_values;
 
         for (uint32_t i = 0; i < left_executor_->GetOutputSchema().GetColumnCount(); i++) {
@@ -85,17 +83,13 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       continue;
     }
 
-    // no more right tuples for current left tuple
     // handle LEFT JOIN - emit left tuple with NULL values for right side if no match
     if (plan_->GetJoinType() == JoinType::LEFT && !left_matched_) {
       std::vector<Value> output_values;
 
-      // add all columns from left tuple
       for (uint32_t i = 0; i < left_executor_->GetOutputSchema().GetColumnCount(); i++) {
         output_values.push_back(left_tuple_.GetValue(&left_executor_->GetOutputSchema(), i));
       }
-
-      // add NULL values for right tuple columns
       for (uint32_t i = 0; i < right_executor_->GetOutputSchema().GetColumnCount(); i++) {
         const auto &col = right_executor_->GetOutputSchema().GetColumn(i);
         output_values.push_back(ValueFactory::GetNullValueByType(col.GetType()));
@@ -104,7 +98,6 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       *tuple = Tuple(output_values, &GetOutputSchema());
       *rid = RID{};
 
-      // move to next left tuple and reset state
       left_tuple_ready_ = left_executor_->Next(&left_tuple_, &left_rid_);
       left_matched_ = false;
       right_executor_->Init();
@@ -112,7 +105,6 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       return true;
     }
 
-    // move to next left tuple
     left_tuple_ready_ = left_executor_->Next(&left_tuple_, &left_rid_);
     left_matched_ = false;
     right_executor_->Init();

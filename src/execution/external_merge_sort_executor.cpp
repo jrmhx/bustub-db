@@ -137,22 +137,19 @@ void ExternalMergeSortExecutor<K>::Init() {
   child_executor_->Init();
 
   if (!initialized_) {
-    // 1 Generate sorted runs
     GenerateSortedRuns();
 
-    // 2 Merge sorted runs
     while (sorted_runs_.size() > 1) {
       MergeRuns();
     }
 
-    // Initialize iterator for final merged run
     if (!sorted_runs_.empty()) {
       current_iterator_ = sorted_runs_[0].Begin();
     }
 
     initialized_ = true;
   } else {
-    // Reset iterator to beginning
+    // reset iterator to beginning
     if (!sorted_runs_.empty()) {
       current_iterator_ = sorted_runs_[0].Begin();
     }
@@ -166,7 +163,7 @@ auto ExternalMergeSortExecutor<K>::Next(Tuple *tuple, RID *rid) -> bool {
   }
 
   *tuple = *current_iterator_;
-  *rid = RID{};  // external sort doesn't preserve original RIDs
+  *rid = RID{};
   ++current_iterator_;
 
   return true;
@@ -192,11 +189,9 @@ void ExternalMergeSortExecutor<K>::GenerateSortedRuns() {
       // sort the current run
       std::sort(current_run.begin(), current_run.end(), cmp_);
 
-      // create pages for this run
       std::vector<page_id_t> pages;
       CreateSortPages(current_run, pages, schema);
 
-      // create MergeSortRun and add to sorted_runs_
       sorted_runs_.emplace_back(std::move(pages), exec_ctx_->GetBufferPoolManager(), schema);
 
       current_run.clear();
@@ -256,20 +251,16 @@ void ExternalMergeSortExecutor<K>::MergeRuns() {
   std::vector<MergeSortRun> new_runs;
   const auto &schema = child_executor_->GetOutputSchema();
 
-  // process runs in groups of K
   for (size_t i = 0; i < sorted_runs_.size(); i += K) {
     size_t end_idx = std::min(i + K, sorted_runs_.size());
 
-    // collect the runs to merge
     std::vector<MergeSortRun::Iterator> iterators;
     for (size_t j = i; j < end_idx; j++) {
       iterators.push_back(sorted_runs_[j].Begin());
     }
 
-    // merge these runs
     std::vector<SortEntry> merged_tuples;
 
-    // priority queue for K-way merge - use indices instead of copying iterators
     using IndexPair = std::pair<size_t, size_t>;  // (run_index, local_iterator_index)
     auto cmp_func = [this, &iterators](const IndexPair &a, const IndexPair &b) {
       auto tuple_a = *iterators[a.second];
@@ -289,7 +280,6 @@ void ExternalMergeSortExecutor<K>::MergeRuns() {
       }
     }
 
-    // perform K-way merge
     while (!pq.empty()) {
       auto [run_global_idx, local_idx] = pq.top();
       pq.pop();
@@ -304,13 +294,11 @@ void ExternalMergeSortExecutor<K>::MergeRuns() {
       }
     }
 
-    // create new run from merged tuples
     std::vector<page_id_t> pages;
     CreateSortPages(merged_tuples, pages, schema);
     new_runs.emplace_back(std::move(pages), exec_ctx_->GetBufferPoolManager(), schema);
   }
 
-  // replace old runs with new merged runs
   sorted_runs_ = std::move(new_runs);
 }
 

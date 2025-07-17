@@ -58,12 +58,10 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     auto [meta, t] = table_iter_->GetTuple();
     *rid = table_iter_->GetRID();
     ++(*table_iter_);
-    // skip deleted tuples
     if (meta.is_deleted_) {
       continue;
     }
 
-    // apply filter predicate
     if (plan_->filter_predicate_ != nullptr) {
       auto val = plan_->filter_predicate_->Evaluate(&t, plan_->OutputSchema());
       if (!val.IsNull() && val.GetAs<bool>()) {

@@ -65,7 +65,6 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     meta.is_deleted_ = true;
     table_info_->table_->UpdateTupleMeta(meta, r);
 
-    // evaluate expressions to get the new values
     std::vector<Value> values;
     values.reserve(plan_->target_expressions_.size());
     for (const auto &expr : plan_->target_expressions_) {
@@ -80,7 +79,6 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       auto txn = exec_ctx_->GetTransaction();
       auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
       for (auto &index_info : indexes) {
-        //++updated;
         index_info->index_->DeleteEntry(
             t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), r, txn);
         index_info->index_->InsertEntry(

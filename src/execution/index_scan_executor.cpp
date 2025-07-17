@@ -69,7 +69,6 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (!plan_->pred_keys_.empty()) {
     return HandlePointLookup(tuple, rid);
   } else {  // NOLINT
-    // full index scan
     return HandleFullScan(tuple, rid);
   }
 }
@@ -101,18 +100,14 @@ auto IndexScanExecutor::HandlePointLookup(Tuple *tuple, RID *rid) -> bool {
 }
 
 auto IndexScanExecutor::HandleFullScan(Tuple *tuple, RID *rid) -> bool {
-  // check if iterator is properly initialized
   if (tree_ == nullptr) {
     return false;
   }
 
-  // use member iterator that maintains state across calls
   while (!idx_iter_.IsEnd()) {
-    // extract RID as a copy to avoid reference invalidation when iterator advances
     const auto r = (*idx_iter_).second;
     ++idx_iter_;
 
-    // validate the RID before using it
     if (r.GetPageId() == INVALID_PAGE_ID) {
       continue;
     }
