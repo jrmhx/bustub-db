@@ -59,6 +59,8 @@ auto GenerateNewUndoLog(const Schema *schema, const Tuple *base_tuple, const Tup
 auto GenerateUpdatedUndoLog(const Schema *schema, const Tuple *base_tuple, const Tuple *target_tuple,
                             const UndoLog &log) -> UndoLog;
 
+auto GetUndoLogSchema(const Schema *original_schema, const UndoLog &undo_log) -> Schema;
+
 void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const TableInfo *table_info,
                TableHeap *table_heap);
 

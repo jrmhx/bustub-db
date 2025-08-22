@@ -11,12 +11,23 @@
 //===----------------------------------------------------------------------===//
 
 #include "execution/execution_common.h"
+#include <sys/types.h>
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <optional>
+#include <vector>
 
 #include "catalog/catalog.h"
+#include "catalog/schema.h"
 #include "common/macros.h"
+#include "concurrency/transaction.h"
 #include "concurrency/transaction_manager.h"
 #include "fmt/core.h"
 #include "storage/table/table_heap.h"
+#include "storage/table/tuple.h"
+#include "type/value.h"
 
 namespace bustub {
 
@@ -84,7 +95,47 @@ auto GenerateSortKey(const Tuple &tuple, const std::vector<OrderBy> &order_bys, 
  */
 auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
                       const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple> {
-  UNIMPLEMENTED("not implemented");
+  bool is_deleted = base_meta.is_deleted_;
+  std::vector<Value> values;
+  values.reserve(schema->GetColumnCount());
+  for(uint32_t i = 0; i < schema->GetColumnCount(); i++) {
+    values.emplace_back(base_tuple.GetValue(schema, i));
+  }
+
+  for (const auto &undo_log : undo_logs) {
+    if (undo_log.is_deleted_) {
+      is_deleted = true;
+      continue;
+    }
+    is_deleted = false;
+
+    std::vector<uint32_t> modified_indices;
+    modified_indices.reserve(undo_log.tuple_.GetLength());
+    std::for_each(
+      undo_log.modified_fields_.begin(),
+      undo_log.modified_fields_.end(),
+      [&modified_indices, idx=uint32_t{0}] (bool is_modified) mutable {
+        if (is_modified) {
+          modified_indices.push_back(idx);
+        }
+        ++idx;
+      }
+    );
+    auto partical_schema = std::make_unique<Schema>(Schema::CopySchema(schema, modified_indices));
+    std::for_each(
+      undo_log.modified_fields_.begin(),
+      undo_log.modified_fields_.end(),
+      [&, base_idx=uint32_t{0}, update_idx=uint32_t{0}](bool is_modified) mutable {
+        if (is_modified) {
+          values.at(base_idx) = undo_log.tuple_.GetValue(partical_schema.get(), update_idx);
+          ++update_idx;
+        }
+        ++base_idx;
+      }
+    );
+  }
+  
+  return is_deleted ? std::nullopt : std::make_optional<Tuple>(values, schema);
 }
 
 /**
