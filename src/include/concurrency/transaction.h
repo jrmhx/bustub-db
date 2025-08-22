@@ -175,10 +175,10 @@ class Transaction {
   /** The state of this transaction. */
   std::atomic<TransactionState> state_{TransactionState::RUNNING};
 
-  /** The read ts */
+  /** The read ts defines what this transaction can see*/
   std::atomic<timestamp_t> read_ts_{0};
 
-  /** The commit ts */
+  /** The commit ts marks when new versions become visible*/
   std::atomic<timestamp_t> commit_ts_{INVALID_TS};
 
   /** The latch for this transaction for accessing txn-level undo logs, protecting all fields below. */

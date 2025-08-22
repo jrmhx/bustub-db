@@ -48,6 +48,8 @@ auto TransactionManager::Begin(IsolationLevel isolation_level) -> Transaction * 
   txn_map_.insert(std::make_pair(txn_id, std::move(txn)));
 
   // TODO(fall2023): set the timestamps here. Watermark updated below.
+  // txn_id start from 1 but the last_commit_ts start from 0
+  txn_ref->read_ts_.store(last_commit_ts_.load());
 
   running_txns_.AddTxn(txn_ref->read_ts_);
   return txn_ref;
@@ -55,7 +57,9 @@ auto TransactionManager::Begin(IsolationLevel isolation_level) -> Transaction * 
 
 /** @brief Verify if a txn satisfies serializability. We will not test this function and you can change / remove it as
  * you want. */
-auto TransactionManager::VerifyTxn(Transaction *txn) -> bool { return true; }
+auto TransactionManager::VerifyTxn(Transaction *txn) -> bool { 
+  return true;
+}
 
 /**
  * Commits a transaction.
@@ -66,6 +70,7 @@ auto TransactionManager::Commit(Transaction *txn) -> bool {
   std::unique_lock<std::mutex> commit_lck(commit_mutex_);
 
   // TODO(fall2023): acquire commit ts!
+  txn->commit_ts_.store(last_commit_ts_.load()+1);
 
   if (txn->state_ != TransactionState::RUNNING) {
     throw Exception("txn not in running state");
@@ -80,15 +85,14 @@ auto TransactionManager::Commit(Transaction *txn) -> bool {
   }
 
   // TODO(fall2023): Implement the commit logic!
-
   std::unique_lock<std::shared_mutex> lck(txn_map_mutex_);
 
   // TODO(fall2023): set commit timestamp + update last committed timestamp here.
 
   txn->state_ = TransactionState::COMMITTED;
-  running_txns_.UpdateCommitTs(txn->commit_ts_);
+  running_txns_.UpdateCommitTs(txn->GetCommitTs());
   running_txns_.RemoveTxn(txn->read_ts_);
-
+  last_commit_ts_.fetch_add(1);
   return true;
 }
 
@@ -110,6 +114,21 @@ void TransactionManager::Abort(Transaction *txn) {
 
 /** @brief Stop-the-world garbage collection. Will be called only when all transactions are not accessing the table
  * heap. */
-void TransactionManager::GarbageCollection() { UNIMPLEMENTED("not implemented"); }
+void TransactionManager::GarbageCollection() { 
+  auto watermark = GetWatermark();
+  
+  std::unique_lock<std::shared_mutex> lck(txn_map_mutex_);
+  auto it = txn_map_.begin();
+  while (it != txn_map_.end()) {
+    auto& txn = it->second;
+    if ((txn->GetTransactionState() == TransactionState::COMMITTED || 
+         txn->GetTransactionState() == TransactionState::ABORTED) &&
+        txn->GetCommitTs() < watermark) {
+      it = txn_map_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
 
 }  // namespace bustub
