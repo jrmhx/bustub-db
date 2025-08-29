@@ -21,6 +21,7 @@
 
 #include "catalog/catalog.h"
 #include "catalog/schema.h"
+#include "common/config.h"
 #include "common/macros.h"
 #include "concurrency/transaction.h"
 #include "concurrency/transaction_manager.h"
@@ -152,7 +153,19 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
  */
 auto CollectUndoLogs(RID rid, const TupleMeta &base_meta, const Tuple &base_tuple, std::optional<UndoLink> undo_link,
                      Transaction *txn, TransactionManager *txn_mgr) -> std::optional<std::vector<UndoLog>> {
-  UNIMPLEMENTED("not implemented");
+  if(base_meta.ts_ <= txn->GetReadTs() && base_meta.ts_ < TXN_START_ID) {
+    return base_meta.is_deleted_ ? std::nullopt : std::make_optional<std::vector<UndoLog>>({});
+  }
+
+  if (base_meta.ts_ > txn->GetReadTs() || 
+    (base_meta.ts_ >= TXN_START_ID && base_meta.ts_ != txn->GetTransactionTempTs())) {
+
+  }
+
+  if (base_meta.ts_ == txn->GetTransactionTempTs()) {
+    
+    return {std::vector<UndoLog>{}};
+  }
 }
 
 /**
