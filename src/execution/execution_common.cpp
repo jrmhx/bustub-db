@@ -153,18 +153,50 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
  */
 auto CollectUndoLogs(RID rid, const TupleMeta &base_meta, const Tuple &base_tuple, std::optional<UndoLink> undo_link,
                      Transaction *txn, TransactionManager *txn_mgr) -> std::optional<std::vector<UndoLog>> {
-  if(base_meta.ts_ <= txn->GetReadTs() && base_meta.ts_ < TXN_START_ID) {
-    return base_meta.is_deleted_ ? std::nullopt : std::make_optional<std::vector<UndoLog>>({});
-  }
+  // tuple is updated by an uncommitted txn
+  if (base_meta.ts_ >= TXN_START_ID) {
+    // tuple is updated by current txn
+    if (base_meta.ts_ == txn->GetTransactionTempTs()) {
+      return base_meta.is_deleted_ ? std::nullopt : std::make_optional<std::vector<UndoLog>>({});
+    }
 
-  if (base_meta.ts_ > txn->GetReadTs() || 
-    (base_meta.ts_ >= TXN_START_ID && base_meta.ts_ != txn->GetTransactionTempTs())) {
+    // by other tuple
+    std::vector<UndoLog> udlgs;
+    while (undo_link.has_value() && undo_link->IsValid()) {
+      auto udlg = txn_mgr->GetUndoLog(undo_link.value());
+      undo_link = std::make_optional(udlg.prev_version_);
+      udlgs.push_back(udlg);
+      if (udlg.ts_ <= txn->GetReadTs() ) {
+        break;
+      }
+    }
 
-  }
+    if (udlgs.empty() || udlgs.back().is_deleted_ || udlgs.back().ts_ > txn->GetReadTs()) {
+      return std::nullopt;
+    }
 
-  if (base_meta.ts_ == txn->GetTransactionTempTs()) {
-    
-    return {std::vector<UndoLog>{}};
+    return std::make_optional(udlgs);
+
+  } else { // tuple is updated by a committed txn
+    if (base_meta.ts_ > txn->GetReadTs()) {
+      std::vector<UndoLog> udlgs;
+      while (undo_link.has_value() && undo_link->IsValid()) {
+        auto udlg = txn_mgr->GetUndoLog(undo_link.value());
+        udlgs.push_back(udlg);
+        undo_link = std::make_optional(udlg.prev_version_);
+        
+        if (udlg.ts_ <= txn->GetReadTs()) {
+          break;
+        }
+      }
+      
+      if (udlgs.empty() || udlgs.back().ts_ > txn->GetReadTs()) {
+        return std::nullopt;
+      }
+      return std::make_optional(udlgs);
+    } else {
+      return std::make_optional<std::vector<UndoLog>>({});
+    }
   }
 }
 

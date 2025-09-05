@@ -13,6 +13,10 @@
 #pragma once
 
 #include <memory>
+#include "catalog/catalog.h"
+#include "catalog/schema.h"
+#include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/seq_scan_plan.h"
@@ -40,5 +44,9 @@ class SeqScanExecutor : public AbstractExecutor {
   /** The sequential scan plan node to be executed */
   const SeqScanPlanNode *plan_;
   std::unique_ptr<TableIterator> table_iter_ = nullptr;
+  TransactionManager * txn_manager_;
+  std::shared_ptr<TableInfo> table_info_;
+  Transaction * txn_;
+  const Schema * table_schema_;
 };
 }  // namespace bustub

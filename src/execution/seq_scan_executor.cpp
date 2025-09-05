@@ -12,7 +12,10 @@
 
 #include "execution/executors/seq_scan_executor.h"
 #include <memory>
+#include <optional>
 #include "common/macros.h"
+#include "concurrency/transaction_manager.h"
+#include "execution/execution_common.h"
 #include "storage/table/table_heap.h"
 #include "storage/table/table_iterator.h"
 
@@ -25,22 +28,18 @@ namespace bustub {
  */
 SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx) {
   plan_ = plan;
+  txn_manager_ = exec_ctx->GetTransactionManager();
+  txn_ = exec_ctx->GetTransaction();
   auto *catalog = exec_ctx->GetCatalog();
   BUSTUB_ASSERT(catalog != nullptr, "Invalid Catalog");
-  auto table_info = catalog->GetTable(plan_->GetTableOid());
-  BUSTUB_ASSERT(table_info != nullptr, "Invalid Table Info!");
+  table_info_ = catalog->GetTable(plan_->GetTableOid());
+  BUSTUB_ASSERT(table_info_ != nullptr, "Invalid Table Info!");
+  table_schema_ = &table_info_->schema_;
   table_iter_.reset(nullptr);
 }
 
-/** Initialize the sequential scan */
 void SeqScanExecutor::Init() {
-  // init the table iterator
-  auto table_oid = plan_->GetTableOid();
-  auto *catalog = exec_ctx_->GetCatalog();
-  BUSTUB_ASSERT(catalog != nullptr, "Invalid Catalog");
-  auto table_info = catalog->GetTable(table_oid);
-  BUSTUB_ASSERT(table_info != nullptr, "Invalid Table Info!");
-  table_iter_ = std::make_unique<TableIterator>(table_info->table_->MakeIterator());
+  table_iter_ = std::make_unique<TableIterator>(table_info_->table_->MakeIterator());
 }
 
 /**
@@ -55,21 +54,29 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   }
 
   while (!table_iter_->IsEnd()) {
-    auto [meta, t] = table_iter_->GetTuple();
     *rid = table_iter_->GetRID();
     ++(*table_iter_);
-    if (meta.is_deleted_) {
+    // see if we need to retive the prev version of this tuple
+    auto [meta, t, undo_link] = GetTupleAndUndoLink(txn_manager_, table_info_->table_.get(), *rid);
+    auto undo_logs = CollectUndoLogs(*rid, meta, t, undo_link, txn_, txn_manager_);
+    if (undo_logs == std::nullopt) {
+      continue;
+    }
+
+    auto tuple_opt = ReconstructTuple(table_schema_, t, meta, undo_logs.value());
+
+    if (tuple_opt == std::nullopt) {
       continue;
     }
 
     if (plan_->filter_predicate_ != nullptr) {
-      auto val = plan_->filter_predicate_->Evaluate(&t, plan_->OutputSchema());
+      auto val = plan_->filter_predicate_->Evaluate(&tuple_opt.value(), plan_->OutputSchema());
       if (!val.IsNull() && val.GetAs<bool>()) {
-        *tuple = t;
+        *tuple = tuple_opt.value();
         return true;
       }
     } else {
-      *tuple = t;
+      *tuple = tuple_opt.value();
       return true;
     }
   }
