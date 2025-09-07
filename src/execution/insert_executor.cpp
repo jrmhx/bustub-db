@@ -33,12 +33,14 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
   plan_ = plan;
   auto *catalog = exec_ctx->GetCatalog();
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
-  table_info_ = catalog->GetTable(plan->GetTableOid()).get();
+  table_info_ = catalog->GetTable(plan->GetTableOid());
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table");
+  table_schema_ = &table_info_->schema_;
+  txn_ = exec_ctx_->GetTransaction();
+  txn_mgr_ = exec_ctx_->GetTransactionManager();
   child_executor_ = std::move(child_executor);
 }
 
-/** Initialize the insert */
 void InsertExecutor::Init() {
   child_executor_->Init();
   produced_ = false;
@@ -61,19 +63,18 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   Tuple t;
   RID r;
   while (child_executor_->Next(&t, &r)) {
-    TupleMeta meta{exec_ctx_->GetTransaction()->GetTransactionId(), false};
+    TupleMeta meta{txn_->GetTransactionTempTs(), false};
     auto rid_opt = table_info_->table_->InsertTuple(meta, t);
     if (rid_opt != std::nullopt) {
-      auto *txn = exec_ctx_->GetTransaction();
+      txn_->AppendWriteSet(table_info_->oid_, rid_opt.value());
       auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
       for (const auto &index_info : indexes) {
         index_info->index_->InsertEntry(
-            t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
-            rid_opt.value(), txn);
+          t.KeyFromTuple(*table_schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
+          rid_opt.value(), txn_);
       }
       ++inserted;
     } else {
-      // unsuccessful insert
       return false;
     }
   }

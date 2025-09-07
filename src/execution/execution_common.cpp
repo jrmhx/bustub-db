@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -25,6 +26,7 @@
 #include "common/macros.h"
 #include "concurrency/transaction.h"
 #include "concurrency/transaction_manager.h"
+#include "fmt/base.h"
 #include "fmt/core.h"
 #include "storage/table/table_heap.h"
 #include "storage/table/tuple.h"
@@ -236,10 +238,69 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
   // always use stderr for printing logs...
   fmt::println(stderr, "debug_hook: {}", info);
 
-  fmt::println(
-      stderr,
-      "You see this line of text because you have not implemented `TxnMgrDbg`. You should do this once you have "
-      "finished task 2. Implementing this helper function will save you a lot of time for debugging in later tasks.");
+  auto it = table_heap->MakeIterator();
+
+  while (!it.IsEnd()) {
+    const auto rid = it.GetRID();
+    const auto [meta, tuple] = it.GetTuple();
+    
+    std::string ts_str;
+    if (meta.ts_ >= TXN_START_ID) {
+      ts_str = fmt::format("txn{}", meta.ts_ ^ TXN_START_ID);
+    } else {
+      ts_str = std::to_string(meta.ts_);
+    }
+    
+    const auto *schema = &table_info->schema_;
+    std::string tuple_str = tuple.ToString(schema);
+
+    if (meta.is_deleted_) {
+      fmt::println(stderr, "RID={}/{} ts={} <del marker> tuple={}", 
+                   rid.GetPageId(), rid.GetSlotNum(), ts_str, tuple_str);
+    } else {
+      fmt::println(stderr, "RID={}/{} ts={} tuple={}", 
+                   rid.GetPageId(), rid.GetSlotNum(), ts_str, tuple_str);
+    }
+    
+    auto undo_link = txn_mgr->GetUndoLink(rid);
+    while (undo_link.has_value() && undo_link->IsValid()) {
+      auto undo_log = txn_mgr->GetUndoLog(undo_link.value());
+      
+      std::string undo_txn_str;
+      undo_txn_str = fmt::format("txn{}@{}", undo_link->prev_txn_, undo_link->prev_log_idx_);
+      std::string undo_tuple_str = undo_log.is_deleted_ ? "<del>" : "(";
+      if (!undo_log.is_deleted_) {
+        std::vector<uint32_t> modified_indices;
+        for (uint32_t i = 0; i < undo_log.modified_fields_.size(); ++i) {
+          if (undo_log.modified_fields_[i]) {
+            modified_indices.push_back(i);
+          }
+        }
+        
+        auto partial_schema = std::make_unique<Schema>(Schema::CopySchema(schema, modified_indices));
+        uint32_t partial_idx = 0;
+        
+        for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
+          if (i > 0) undo_tuple_str += ", ";
+          if (undo_log.modified_fields_[i]) {
+            auto value = undo_log.tuple_.GetValue(partial_schema.get(), partial_idx++);
+            if (value.IsNull()) {
+              undo_tuple_str += "<NULL>";
+            } else {
+              undo_tuple_str += value.ToString();
+            }
+          } else {
+            undo_tuple_str += "_";  // unchanged field
+          }
+        }
+        undo_tuple_str += ")";
+      }
+      fmt::println(stderr, "\t{} {} ts={}", undo_txn_str, undo_tuple_str, undo_log.ts_);
+      undo_link = undo_log.prev_version_;
+    }
+    
+    ++it;
+  }
 
   // We recommend implementing this function as traversing the table heap and print the version chain. An example output
   // of our reference solution:
