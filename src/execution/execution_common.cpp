@@ -113,7 +113,6 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
     is_deleted = false;
 
     std::vector<uint32_t> modified_indices;
-    modified_indices.reserve(undo_log.tuple_.GetLength());
     std::for_each(
       undo_log.modified_fields_.begin(),
       undo_log.modified_fields_.end(),

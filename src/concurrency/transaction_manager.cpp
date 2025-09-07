@@ -47,7 +47,6 @@ auto TransactionManager::Begin(IsolationLevel isolation_level) -> Transaction * 
   auto *txn_ref = txn.get();
   txn_map_.insert(std::make_pair(txn_id, std::move(txn)));
 
-  // TODO(fall2023): set the timestamps here. Watermark updated below.
   // txn_id start from 1 but the last_commit_ts start from 0
   txn_ref->read_ts_.store(last_commit_ts_.load());
 
@@ -69,7 +68,6 @@ auto TransactionManager::VerifyTxn(Transaction *txn) -> bool {
 auto TransactionManager::Commit(Transaction *txn) -> bool {
   std::unique_lock<std::mutex> commit_lck(commit_mutex_);
 
-  // TODO(fall2023): acquire commit ts!
   txn->commit_ts_.store(last_commit_ts_.load()+1);
 
   if (txn->state_ != TransactionState::RUNNING) {
@@ -84,11 +82,19 @@ auto TransactionManager::Commit(Transaction *txn) -> bool {
     }
   }
 
-  // TODO(fall2023): Implement the commit logic!
+  // the below code of commit update the base tuple's meta.ts_ to commit ts
+  // it only work with all write executor using TableHeap::UpdateTuple() with a correct check() passed to provide txn level write write conflict.
+  const auto &ws = txn->GetWriteSets();
+  for (const auto &[table_oid, rids] : ws) {
+    const auto table_info = this->catalog_->GetTable(table_oid);
+    for (const auto rid : rids) {
+      auto meta = table_info->table_->GetTupleMeta(rid);
+      meta.ts_ = txn->GetCommitTs();
+      table_info->table_->UpdateTupleMeta(meta, rid); // this func acquire table_heap page lock
+    }
+  }
+
   std::unique_lock<std::shared_mutex> lck(txn_map_mutex_);
-
-  // TODO(fall2023): set commit timestamp + update last committed timestamp here.
-
   txn->state_ = TransactionState::COMMITTED;
   running_txns_.UpdateCommitTs(txn->GetCommitTs());
   running_txns_.RemoveTxn(txn->read_ts_);
@@ -106,7 +112,6 @@ void TransactionManager::Abort(Transaction *txn) {
   }
 
   // TODO(fall2023): Implement the abort logic!
-
   std::unique_lock<std::shared_mutex> lck(txn_map_mutex_);
   txn->state_ = TransactionState::ABORTED;
   running_txns_.RemoveTxn(txn->read_ts_);
