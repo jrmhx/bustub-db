@@ -37,9 +37,17 @@
 
 namespace bustub {
 
+// ! example usage of closure
 /**
  * @brief Update an undo link that links table heap tuple to the first undo log.
  * Before updating, `check` function will be called to ensure validity.
+ * 
+ * @param check Lambda function that validates the current undo link before update.
+ *              Typical usage: capture original undo link and compare with current:
+ *              auto check = [original_link](std::optional<UndoLink> current) -> bool {
+ *                  return current == original_link;  // Ensure no concurrent changes
+ *              };
+ *              Pass nullptr to skip validation (single-threaded scenarios).
  */
 auto TransactionManager::UpdateUndoLink(RID rid, std::optional<UndoLink> prev_link,
                                         std::function<bool(std::optional<UndoLink>)> &&check) -> bool {
@@ -125,6 +133,14 @@ void Transaction::SetTainted() {
 
 /**
  * @brief Update the tuple and its undo link in the table heap atomically.
+ * 
+ * @param check Lambda function that validates tuple state before atomic update.
+ *              Typical usage: capture original state and validate consistency:
+ *              auto check = [orig_meta, orig_undo](const TupleMeta& meta, const Tuple& tuple, 
+ *                                                  RID rid, std::optional<UndoLink> undo) -> bool {
+ *                  return meta.ts_ == orig_meta.ts_ && undo == orig_undo;  // No concurrent changes
+ *              };
+ *              Pass nullptr to skip validation (single-threaded scenarios).
  */
 auto UpdateTupleAndUndoLink(
     TransactionManager *txn_mgr, RID rid, std::optional<UndoLink> undo_link, TableHeap *table_heap, Transaction *txn,

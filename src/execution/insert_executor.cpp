@@ -12,8 +12,11 @@
 
 #include <memory>
 #include <optional>
+#include "common/exception.h"
 #include "common/macros.h"
 #include "common/rid.h"
+#include "concurrency/transaction_manager.h"
+#include "execution/execution_common.h"
 #include "storage/table/tuple.h"
 #include "type/value_factory.h"
 
@@ -35,7 +38,6 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
   table_info_ = catalog->GetTable(plan->GetTableOid());
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table");
-  table_schema_ = &table_info_->schema_;
   txn_ = exec_ctx_->GetTransaction();
   txn_mgr_ = exec_ctx_->GetTransactionManager();
   child_executor_ = std::move(child_executor);
@@ -67,15 +69,40 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     auto rid_opt = table_info_->table_->InsertTuple(meta, t);
     if (rid_opt != std::nullopt) {
       txn_->AppendWriteSet(table_info_->oid_, rid_opt.value());
-      auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-      for (const auto &index_info : indexes) {
-        index_info->index_->InsertEntry(
-          t.KeyFromTuple(*table_schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
-          rid_opt.value(), txn_);
+      
+      try {
+        auto undo_log = GenerateNewUndoLog(&table_info_->schema_, nullptr, &t, txn_->GetTransactionId(), UndoLink{});
+        auto undo_link = txn_->AppendUndoLog(undo_log);
+        
+        auto check = [](std::optional<UndoLink> current_link) -> bool {
+          return !current_link.has_value();  // should be no existing undo link for new insert
+        };
+        
+        bool success = txn_mgr_->UpdateUndoLink(rid_opt.value(), undo_link, std::move(check));
+        if (!success) {
+          txn_->SetTainted();
+          throw ExecutionException("Failed to update undo link for insert - concurrent modification detected");
+        }
+        
+        // update index
+        auto indices = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
+        for (const auto &index_info : indices) {
+          bool index_success = index_info->index_->InsertEntry(
+            t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
+            rid_opt.value(), txn_);
+          if (!index_success) {
+            txn_->SetTainted();
+            throw ExecutionException("Failed to insert into index - possible duplicate key or constraint violation");
+          }
+        }
+        ++inserted;
+      } catch (const Exception &e) {
+        txn_->SetTainted();
+        throw;
       }
-      ++inserted;
     } else {
-      return false;
+      txn_->SetTainted();
+      throw ExecutionException("Failed to allocate tuple into table heap");
     }
   }
   *tuple = Tuple({ValueFactory::GetIntegerValue(inserted)}, &plan_->OutputSchema());

@@ -23,6 +23,7 @@
 #include "catalog/catalog.h"
 #include "catalog/schema.h"
 #include "common/config.h"
+#include "common/exception.h"
 #include "common/macros.h"
 #include "concurrency/transaction.h"
 #include "concurrency/transaction_manager.h"
@@ -101,7 +102,7 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
   bool is_deleted = base_meta.is_deleted_;
   std::vector<Value> values;
   values.reserve(schema->GetColumnCount());
-  for(uint32_t i = 0; i < schema->GetColumnCount(); i++) {
+  for(uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
     values.emplace_back(base_tuple.GetValue(schema, i));
   }
 
@@ -214,7 +215,38 @@ auto CollectUndoLogs(RID rid, const TupleMeta &base_meta, const Tuple &base_tupl
  */
 auto GenerateNewUndoLog(const Schema *schema, const Tuple *base_tuple, const Tuple *target_tuple, timestamp_t ts,
                         UndoLink prev_version) -> UndoLog {
-  UNIMPLEMENTED("not implemented");
+  if (base_tuple==nullptr && target_tuple == nullptr) {
+    throw Exception("Cannot generate undo_log for 2 nullptr");
+  }
+  UndoLog undo_log;
+  undo_log.ts_ = ts;
+  undo_log.prev_version_ = prev_version;
+  if (target_tuple==nullptr) {
+    undo_log.modified_fields_ = std::vector<bool>(base_tuple->GetLength(), true);
+    undo_log.is_deleted_ = false;
+    undo_log.tuple_ = *base_tuple;
+  } else if (base_tuple == nullptr) {
+    undo_log.is_deleted_ = true;
+  } else {
+    undo_log.modified_fields_ = std::vector<bool>(base_tuple->GetLength(), false);
+    undo_log.is_deleted_ = false;
+    std::vector<uint32_t> attrs;
+    std::vector<Value> values;
+    for (uint32_t i = 0; i < base_tuple->GetLength(); ++i) {
+      if (!base_tuple->GetValue(schema, i).CompareExactlyEquals(target_tuple->GetValue(schema, i))){
+        undo_log.modified_fields_.at(i) = true;
+        attrs.push_back(i);
+        values.push_back(base_tuple->GetValue(schema, i));
+      }
+    }
+    if (values.empty()) {
+      throw Exception("cannot add undo log to unchanged tuples");
+    }
+    auto mask_schema = schema->CopySchema(schema, attrs);
+    undo_log.tuple_ = Tuple(values, &mask_schema);
+  }
+  
+  return undo_log;
 }
 
 /**
@@ -229,7 +261,35 @@ auto GenerateNewUndoLog(const Schema *schema, const Tuple *base_tuple, const Tup
  */
 auto GenerateUpdatedUndoLog(const Schema *schema, const Tuple *base_tuple, const Tuple *target_tuple,
                             const UndoLog &log) -> UndoLog {
-  UNIMPLEMENTED("not implemented");
+  if (base_tuple==nullptr && target_tuple == nullptr) {
+    throw Exception("Cannot generate undo_log for 2 nullptr");
+  }
+  UndoLog undo_log;
+  undo_log.ts_ = log.ts_;
+  undo_log.prev_version_ = log.prev_version_;
+  
+  auto origin = ReconstructTuple(schema, *base_tuple, {.ts_=0, .is_deleted_=false}, {log});
+
+  if (origin==std::nullopt) {
+    undo_log.is_deleted_=true;
+  } else {
+    return GenerateNewUndoLog(schema, &(origin.value()), target_tuple, log.ts_, log.prev_version_);
+  }
+  return undo_log;
+}
+
+/**
+ * @brief check if the txn's write operation on this tuple is conflicted with others
+ *
+ * @param txn The pointer of the txn that will conduct a write op.
+ * @param base_meta the meta of the tuple in the table heap
+ */
+auto IsWriteWriteConflict(Transaction * txn, const TupleMeta & base_meta) -> bool {
+  if (txn != nullptr && (base_meta.ts_ == txn->GetTransactionTempTs() || (base_meta.ts_ <= txn->GetReadTs()))) {
+    return false;
+  }
+
+  return true;
 }
 
 void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const TableInfo *table_info,

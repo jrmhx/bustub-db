@@ -48,7 +48,6 @@ class InsertExecutor : public AbstractExecutor {
   bool produced_ = false;
   TransactionManager * txn_mgr_;
   Transaction * txn_;
-  const Schema * table_schema_;
 };
 
 }  // namespace bustub

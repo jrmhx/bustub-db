@@ -10,9 +10,22 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <cstdint>
 #include <memory>
+#include <optional>
+#include <ostream>
+#include <sstream>
+#include <strstream>
+#include <vector>
+#include "common/exception.h"
 #include "common/macros.h"
+#include "common/rid.h"
 #include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
+#include "execution/execution_common.h"
+#include "fmt/ostream.h"
+#include "storage/table/tuple.h"
+#include "type/value.h"
 #include "type/value_factory.h"
 
 #include "execution/executors/update_executor.h"
@@ -32,9 +45,11 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
   plan_ = plan;
   auto *catalog = exec_ctx->GetCatalog();
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
-  table_info_ = catalog->GetTable(plan_->GetTableOid()).get();
+  table_info_ = catalog->GetTable(plan_->GetTableOid());
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table_info");
   child_executor_ = std::move(child_executor);
+  txn_ = exec_ctx_->GetTransaction();
+  txn_mgr_ = exec_ctx_->GetTransactionManager();
 }
 
 /** Initialize the update */
@@ -57,36 +72,95 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   }
   Tuple t;
   RID r;
-  int updated = 0;
+  uint32_t updated = 0;
 
   while (child_executor_->Next(&t, &r)) {
-    // mark the old tuple as deleted
-    auto meta = table_info_->table_->GetTupleMeta(r);
-    meta.is_deleted_ = true;
-    table_info_->table_->UpdateTupleMeta(meta, r);
+    // MVCC makes the txn can only write on the tuple version that they can see
+    // if the to-be-written tuple's latest version is not visable to txn_ there is a write write conflict
 
+    //atomic fetch meta, tuple, undo_link
+    const auto [base_meta, base_tuple, base_ulink] = GetTupleAndUndoLink(txn_mgr_, table_info_->table_.get(), r);
+    // check write write conflict
+    if (IsWriteWriteConflict(txn_, base_meta)) {
+      txn_->SetTainted(); // tained means marked to be aborted but havent aborted yet
+      std::ostringstream error_msg;
+      fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained", txn_->GetTransactionIdHumanReadable());
+      throw ExecutionException(error_msg.str());
+    }
     std::vector<Value> values;
     values.reserve(plan_->target_expressions_.size());
     for (const auto &expr : plan_->target_expressions_) {
-      values.push_back(expr->Evaluate(&t, table_info_->schema_));
+      values.push_back(expr->Evaluate(&base_tuple, table_info_->schema_));
     }
-    Tuple new_tuple(values, &table_info_->schema_);
-    auto new_rid =
-        table_info_->table_->InsertTuple(TupleMeta{exec_ctx_->GetTransaction()->GetTransactionId(), false}, new_tuple);
-    ++updated;
-    // update all indexes
-    if (new_rid.has_value()) {
-      auto txn = exec_ctx_->GetTransaction();
+    Tuple updated_tuple(values, &table_info_->schema_);
+    auto updated_meta = TupleMeta{txn_->GetTransactionTempTs(), false};
+    UndoLink updated_ulink = base_ulink.value_or(UndoLink{});
+    if (base_meta.ts_ <= txn_->GetReadTs()) {
+      auto ulog = GenerateNewUndoLog(
+        &table_info_->schema_, 
+        &base_tuple, 
+        &updated_tuple, 
+        txn_->GetTransactionId(), 
+        base_ulink.value_or(UndoLink{})
+      );
+      updated_ulink = txn_->AppendUndoLog(ulog);
+      
+    } else if (base_meta.ts_ == txn_->GetTransactionTempTs()) {
+      auto base_ulog = txn_mgr_->GetUndoLog(base_ulink.value());
+      auto ulog = GenerateUpdatedUndoLog(&table_info_->schema_, &base_tuple, &updated_tuple, base_ulog);
+      txn_->ModifyUndoLog(base_ulink->prev_log_idx_, ulog);
+    }
+    
+    const auto old_meta = base_meta;
+    const auto old_tuple = base_tuple;
+    const auto old_ulink = base_ulink;
+    auto success_write = UpdateTupleAndUndoLink(
+      txn_mgr_, 
+      r, 
+      updated_ulink, 
+      table_info_->table_.get(), 
+      txn_, 
+      updated_meta, 
+      updated_tuple,
+      [old_meta, old_tuple, old_ulink, r] (const TupleMeta &meta, const Tuple &tuple, const RID rid, const std::optional<UndoLink> ulink) {
+        return (
+          r == rid &&
+          old_meta == meta && 
+          IsTupleContentEqual(old_tuple, tuple) &&
+          old_ulink == ulink &&
+          ulink != std::nullopt
+        );
+      }
+    );
+    if (success_write) {
+      txn_->AppendWriteSet(table_info_->oid_, r);
+      //update index
       auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
       for (auto &index_info : indexes) {
+        
         index_info->index_->DeleteEntry(
-            t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), r, txn);
-        index_info->index_->InsertEntry(
-            new_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
-            new_rid.value(), txn);
+          base_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
+          r, 
+          txn_
+        );
+        auto success_index_update = index_info->index_->InsertEntry(
+          updated_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
+          r, 
+          txn_
+        );
+        if (!success_index_update) {
+          txn_->SetTainted();
+          std::ostringstream error_msg;
+          fmt::print(error_msg, "txn{} failed to update index and is marked as tained", txn_->GetTransactionIdHumanReadable());
+          throw ExecutionException(error_msg.str());
+        }
       }
+      ++updated;
     } else {
-      return false;
+      txn_->SetTainted();
+      std::ostringstream error_msg;
+      fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained", txn_->GetTransactionIdHumanReadable());
+      throw ExecutionException(error_msg.str());
     }
   }
   *tuple = Tuple({ValueFactory::GetIntegerValue(updated)}, &plan_->OutputSchema());

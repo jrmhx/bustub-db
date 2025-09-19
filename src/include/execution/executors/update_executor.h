@@ -42,9 +42,9 @@ class UpdateExecutor : public AbstractExecutor {
  private:
   /** The update plan node to be executed */
   const UpdatePlanNode *plan_;
-
-  /** Metadata identifying the table that should be updated */
-  const TableInfo *table_info_;
+  TransactionManager * txn_mgr_;
+  std::shared_ptr<TableInfo> table_info_;
+  Transaction * txn_;
 
   /** The child executor to obtain value from */
   std::unique_ptr<AbstractExecutor> child_executor_;
