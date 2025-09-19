@@ -222,17 +222,17 @@ auto GenerateNewUndoLog(const Schema *schema, const Tuple *base_tuple, const Tup
   undo_log.ts_ = ts;
   undo_log.prev_version_ = prev_version;
   if (target_tuple==nullptr) {
-    undo_log.modified_fields_ = std::vector<bool>(base_tuple->GetLength(), true);
+    undo_log.modified_fields_ = std::vector<bool>(schema->GetColumnCount(), true);
     undo_log.is_deleted_ = false;
     undo_log.tuple_ = *base_tuple;
   } else if (base_tuple == nullptr) {
     undo_log.is_deleted_ = true;
   } else {
-    undo_log.modified_fields_ = std::vector<bool>(base_tuple->GetLength(), false);
+    undo_log.modified_fields_ = std::vector<bool>(schema->GetColumnCount(), false);
     undo_log.is_deleted_ = false;
     std::vector<uint32_t> attrs;
     std::vector<Value> values;
-    for (uint32_t i = 0; i < base_tuple->GetLength(); ++i) {
+    for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
       if (!base_tuple->GetValue(schema, i).CompareExactlyEquals(target_tuple->GetValue(schema, i))){
         undo_log.modified_fields_.at(i) = true;
         attrs.push_back(i);
@@ -296,6 +296,7 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
                TableHeap *table_heap) {
   // always use stderr for printing logs...
   fmt::println(stderr, "debug_hook: {}", info);
+  fmt::println(stderr, "TXN_START_ID: {}", TXN_START_ID);
 
   auto it = table_heap->MakeIterator();
 
@@ -326,7 +327,7 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
       auto undo_log = txn_mgr->GetUndoLog(undo_link.value());
       
       std::string undo_txn_str;
-      undo_txn_str = fmt::format("txn{}@{}", undo_link->prev_txn_, undo_link->prev_log_idx_);
+      undo_txn_str = fmt::format("txn{}@{}", undo_link->prev_txn_ ^ TXN_START_ID, undo_link->prev_log_idx_);
       std::string undo_tuple_str = undo_log.is_deleted_ ? "<del>" : "(";
       if (!undo_log.is_deleted_) {
         std::vector<uint32_t> modified_indices;
@@ -354,7 +355,10 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
         }
         undo_tuple_str += ")";
       }
-      fmt::println(stderr, "\t{} {} ts={}", undo_txn_str, undo_tuple_str, undo_log.ts_);
+      auto is_temp_ts = undo_log.ts_ >= TXN_START_ID;
+      auto ts = is_temp_ts ? undo_log.ts_ ^ TXN_START_ID : undo_log.ts_;
+
+      fmt::println(stderr, "\t{} {} ts={}{}", undo_txn_str, undo_tuple_str, is_temp_ts ? "txn" : "", ts);
       undo_link = undo_log.prev_version_;
     }
     

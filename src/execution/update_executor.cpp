@@ -98,7 +98,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
         &table_info_->schema_, 
         &base_tuple, 
         &updated_tuple, 
-        txn_->GetTransactionId(), 
+        base_meta.ts_, 
         base_ulink.value_or(UndoLink{})
       );
       updated_ulink = txn_->AppendUndoLog(ulog);
@@ -111,7 +111,6 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     
     const auto old_meta = base_meta;
     const auto old_tuple = base_tuple;
-    const auto old_ulink = base_ulink;
     auto success_write = UpdateTupleAndUndoLink(
       txn_mgr_, 
       r, 
@@ -120,12 +119,11 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       txn_, 
       updated_meta, 
       updated_tuple,
-      [old_meta, old_tuple, old_ulink, r] (const TupleMeta &meta, const Tuple &tuple, const RID rid, const std::optional<UndoLink> ulink) {
+      [old_meta, old_tuple, r] (const TupleMeta &meta, const Tuple &tuple, const RID rid, const std::optional<UndoLink> ulink) {
         return (
           r == rid &&
           old_meta == meta && 
           IsTupleContentEqual(old_tuple, tuple) &&
-          old_ulink == ulink &&
           ulink != std::nullopt
         );
       }

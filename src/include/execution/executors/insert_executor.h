@@ -18,7 +18,6 @@
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/insert_plan.h"
-#include "storage/table/table_iterator.h"
 #include "storage/table/tuple.h"
 
 namespace bustub {

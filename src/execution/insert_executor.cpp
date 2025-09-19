@@ -71,7 +71,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       txn_->AppendWriteSet(table_info_->oid_, rid_opt.value());
       
       try {
-        auto undo_log = GenerateNewUndoLog(&table_info_->schema_, nullptr, &t, txn_->GetTransactionId(), UndoLink{});
+        auto undo_log = GenerateNewUndoLog(&table_info_->schema_, nullptr, &t, 0, UndoLink{});
         auto undo_link = txn_->AppendUndoLog(undo_log);
         
         auto check = [](std::optional<UndoLink> current_link) -> bool {
