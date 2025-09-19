@@ -12,6 +12,12 @@
 
 #include <memory>
 #include "common/macros.h"
+#include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
+#include "execution/execution_common.h"
+#include "fmt/ostream.h"
+#include <sstream>
+#include "storage/table/tuple.h"
 #include "type/value_factory.h"
 
 #include "execution/executors/delete_executor.h"
@@ -31,7 +37,9 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
   plan_ = plan;
   auto *catalog = exec_ctx->GetCatalog();
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
-  table_info_ = catalog->GetTable(plan_->GetTableOid()).get();
+  txn_ = exec_ctx->GetTransaction();
+  txn_mgr_ = exec_ctx->GetTransactionManager();
+  table_info_ = catalog->GetTable(plan_->GetTableOid());
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table_info");
   child_executor_.reset(child_executor.release());
 }
@@ -59,16 +67,64 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   Tuple t;
   RID r;
   while (child_executor_->Next(&t, &r)) {
-    auto meta = table_info_->table_->GetTupleMeta(r);
-    meta.is_deleted_ = true;
-    table_info_->table_->UpdateTupleMeta(meta, r);
-    auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-    auto *txn = exec_ctx_->GetTransaction();
-    for (auto &index_info : indexes) {
-      index_info->index_->DeleteEntry(
-          t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), r, txn);
+    const auto [base_meta, base_tuple, base_ulink] = GetTupleAndUndoLink(txn_mgr_, table_info_->table_.get(), r);
+    if (IsWriteWriteConflict(txn_, base_meta)) {
+      txn_->SetTainted(); // tained means marked to be aborted but havent aborted yet
+      std::ostringstream error_msg;
+      fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained", txn_->GetTransactionIdHumanReadable());
+      throw ExecutionException(error_msg.str());
+    } else {
+      TupleMeta updated_meta = {txn_->GetTransactionTempTs(), true};
+      UndoLink updated_ulink = base_ulink.value_or(UndoLink{});
+      if (base_meta.ts_ <= txn_->GetReadTs()) {
+        auto ulog = GenerateNewUndoLog(
+          &table_info_->schema_, 
+          &base_tuple, nullptr, 
+          txn_->GetTransactionTempTs(), 
+          base_ulink.value_or(UndoLink{})
+        );
+        updated_ulink = txn_->AppendUndoLog(ulog);
+      } else if (base_meta.ts_ == txn_->GetTransactionTempTs()) {
+        auto base_ulog = txn_mgr_->GetUndoLog(base_ulink.value());
+        auto ulog = GenerateUpdatedUndoLog(&table_info_->schema_, &base_tuple, nullptr, base_ulog);
+        txn_->ModifyUndoLog(base_ulink->prev_log_idx_, ulog);
+      }
+      const auto old_meta = base_meta;
+      const auto old_tuple = base_tuple;
+      const auto old_ulink = base_ulink;
+      auto success_write = UpdateTupleAndUndoLink(
+        txn_mgr_, 
+        r, 
+        updated_ulink, 
+        table_info_->table_.get(), 
+        txn_, 
+        updated_meta, 
+        base_tuple,
+        [old_meta, old_tuple, old_ulink, r] (const TupleMeta &meta, const Tuple &tuple, const RID rid, const std::optional<UndoLink> ulink) {
+          return (
+            r == rid &&
+            old_meta == meta && 
+            IsTupleContentEqual(old_tuple, tuple) &&
+            old_ulink == ulink &&
+            ulink != std::nullopt
+          );
+        }
+      );
+      if (success_write) {
+        txn_->AppendWriteSet(table_info_->oid_, r);
+        //update index
+        auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
+        auto *txn = exec_ctx_->GetTransaction();
+        for (auto &index_info : indexes) {
+          index_info->index_->DeleteEntry(
+            base_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
+            r, 
+            txn
+          );
+        }
+        ++deleted;
+      }
     }
-    ++deleted;
   }
   *tuple = Tuple({ValueFactory::GetIntegerValue(deleted)}, &plan_->OutputSchema());
   produced_ = true;
