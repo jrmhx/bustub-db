@@ -71,18 +71,19 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       txn_->AppendWriteSet(table_info_->oid_, rid_opt.value());
       
       try {
-        auto undo_log = GenerateNewUndoLog(&table_info_->schema_, nullptr, &t, 0, UndoLink{});
-        auto undo_link = txn_->AppendUndoLog(undo_log);
+        // newly inserted tuple doesnt have undo log it can be identified by timestamp
+        // auto undo_log = GenerateNewUndoLog(&table_info_->schema_, nullptr, &t, 0, UndoLink{});
+        // auto undo_link = txn_->AppendUndoLog(undo_log);
         
-        auto check = [](std::optional<UndoLink> current_link) -> bool {
-          return !current_link.has_value();  // should be no existing undo link for new insert
-        };
+        // auto check = [](std::optional<UndoLink> current_link) -> bool {
+        //   return !current_link.has_value();  // should be no existing undo link for new insert
+        // };
         
-        bool success = txn_mgr_->UpdateUndoLink(rid_opt.value(), undo_link, std::move(check));
-        if (!success) {
-          txn_->SetTainted();
-          throw ExecutionException("Failed to update undo link for insert - concurrent modification detected");
-        }
+        // bool success = txn_mgr_->UpdateUndoLink(rid_opt.value(), undo_link, std::move(check));
+        // if (!success) {
+        //   txn_->SetTainted();
+        //   throw ExecutionException("Failed to update undo link for insert - concurrent modification detected");
+        // }
         
         // update index
         auto indices = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);

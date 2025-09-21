@@ -265,15 +265,33 @@ auto GenerateUpdatedUndoLog(const Schema *schema, const Tuple *base_tuple, const
     throw Exception("Cannot generate undo_log for 2 nullptr");
   }
   UndoLog undo_log;
+  undo_log.is_deleted_ = log.is_deleted_;
   undo_log.ts_ = log.ts_;
   undo_log.prev_version_ = log.prev_version_;
-  
-  auto origin = ReconstructTuple(schema, *base_tuple, {.ts_=0, .is_deleted_=false}, {log});
+  undo_log.modified_fields_ = log.modified_fields_;
+  std::vector<Value> values;
+  std::vector<uint32_t> attrs;
 
-  if (origin==std::nullopt) {
-    undo_log.is_deleted_=true;
-  } else {
-    return GenerateNewUndoLog(schema, &(origin.value()), target_tuple, log.ts_, log.prev_version_);
+  if (!log.is_deleted_) {
+    auto origin = ReconstructTuple(schema, *base_tuple, {.ts_=0, .is_deleted_=false}, {log});
+    values.reserve(schema->GetColumnCount());
+    attrs.reserve(schema->GetColumnCount());
+    for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
+      if (undo_log.modified_fields_.at(i)) {
+        values.push_back(origin->GetValue(schema, i));
+        attrs.push_back(i);
+      } else if (target_tuple == nullptr) {
+        undo_log.modified_fields_.at(i) = true;
+        values.push_back(origin->GetValue(schema, i));
+        attrs.push_back(i);
+      } else if (!target_tuple->GetValue(schema, i).CompareExactlyEquals(origin->GetValue(schema, i))) {
+        undo_log.modified_fields_.at(i) = true;
+        values.push_back(origin->GetValue(schema, i));
+        attrs.push_back(i);
+      }
+    }
+    auto partical_schema = Schema::CopySchema(schema, attrs);
+    undo_log.tuple_ = Tuple(values, &partical_schema);
   }
   return undo_log;
 }

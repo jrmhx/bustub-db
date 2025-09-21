@@ -79,7 +79,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       const auto old_meta = base_meta;
       const auto old_tuple = base_tuple;
       TupleMeta updated_meta = {txn_->GetTransactionTempTs(), true};
-      UndoLink updated_ulink = base_ulink.value_or(UndoLink{});
+      auto updated_ulink = base_ulink;
       if (base_meta.ts_ <= txn_->GetReadTs()) {
         auto ulog = GenerateNewUndoLog(
           &table_info_->schema_, 
@@ -89,10 +89,11 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
         );
         updated_ulink = txn_->AppendUndoLog(ulog);
       } else if (base_meta.ts_ == txn_->GetTransactionTempTs()) {
-        auto base_ulog = txn_mgr_->GetUndoLog(base_ulink.value());
-        auto ulog = GenerateUpdatedUndoLog(&table_info_->schema_, &base_tuple, nullptr, base_ulog);
-        txn_->ModifyUndoLog(base_ulink->prev_log_idx_, ulog);
-        updated_ulink = base_ulink.value_or(UndoLink{});
+        if (base_ulink.has_value()) { // tuple is not newly inserted
+          auto base_ulog = txn_mgr_->GetUndoLog(base_ulink.value());
+          auto ulog = GenerateUpdatedUndoLog(&table_info_->schema_, &base_tuple, nullptr, base_ulog);
+          txn_->ModifyUndoLog(base_ulink->prev_log_idx_, ulog);
+        }
       }
       auto success_write = UpdateTupleAndUndoLink(
         txn_mgr_, 
@@ -106,8 +107,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
           auto pass = (
             r == rid &&
             old_meta == meta && 
-            IsTupleContentEqual(old_tuple, tuple) &&
-            ulink != std::nullopt
+            IsTupleContentEqual(old_tuple, tuple)
           );
 
           // debug
