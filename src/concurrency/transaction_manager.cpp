@@ -12,6 +12,8 @@
 
 #include "concurrency/transaction_manager.h"
 
+#include <cstdio>
+#include <functional>
 #include <memory>
 #include <mutex>  // NOLINT
 #include <optional>
@@ -27,6 +29,7 @@
 #include "common/macros.h"
 #include "concurrency/transaction.h"
 #include "execution/execution_common.h"
+#include "fmt/base.h"
 #include "storage/table/table_heap.h"
 #include "storage/table/tuple.h"
 #include "type/type_id.h"
@@ -120,16 +123,64 @@ void TransactionManager::Abort(Transaction *txn) {
 /** @brief Stop-the-world garbage collection. Will be called only when all transactions are not accessing the table
  * heap. */
 void TransactionManager::GarbageCollection() { 
+  std::unique_lock<std::shared_mutex> lock(txn_map_mutex_);
   auto watermark = GetWatermark();
+  std::unordered_set<UndoLink, std::hash<UndoLink>> reachable;
   
-  std::unique_lock<std::shared_mutex> lck(txn_map_mutex_);
-  auto it = txn_map_.begin();
-  while (it != txn_map_.end()) {
-    auto& txn = it->second;
-    if ((txn->GetTransactionState() == TransactionState::COMMITTED || 
-         txn->GetTransactionState() == TransactionState::ABORTED) &&
-        txn->GetCommitTs() < watermark) {
-      it = txn_map_.erase(it);
+  auto table_names = catalog_->GetTableNames();
+  for (const auto& table_name : table_names) {
+    auto table_info = catalog_->GetTable(table_name);
+    if (table_info == nullptr) continue;
+    
+    auto table_heap = table_info->table_.get();
+    auto it = table_heap->MakeIterator();
+    
+    while (!it.IsEnd()) {
+      const auto rid = it.GetRID();
+      const auto [meta, tuple, undo_link] = GetTupleAndUndoLink(this, table_heap, rid);
+      // fmt::println(stderr, "\tDEBUG: rid{}/{}, tuple_ts={}, tuple_is_delete={}", rid.GetPageId(), rid.GetSlotNum(), meta.ts_, meta.is_deleted_ ? 1 : 0);
+      if (meta.ts_ <= watermark) {
+        ++it;
+        continue;
+      }
+      auto curr_link = undo_link;
+      while (curr_link.has_value() && curr_link->IsValid()) {
+        auto log = GetUndoLogOptionalUnsafe(curr_link.value());
+        if (!log.has_value()) {
+          break;
+        }
+        if (log->ts_ > watermark) {
+          reachable.insert(curr_link.value());
+          curr_link = log->prev_version_;
+        } else {
+          reachable.insert(curr_link.value());
+          break;
+        }
+      }
+      
+      ++it;
+    }
+  }
+
+  for (auto it = txn_map_.begin(); it != txn_map_.end();) {
+    if (it->second->GetTransactionState() == TransactionState::COMMITTED || 
+        it->second->GetTransactionState() == TransactionState::ABORTED) {
+      auto can_gc = true;
+      
+      for (int i = 0; i < static_cast<int>(it->second->undo_logs_.size()); ++i) {
+        UndoLink target_link{it->first, i};
+        if (reachable.find(target_link) != reachable.end()) {
+          can_gc = false;
+          break;
+        }
+      }
+      
+      if (can_gc) {
+        fmt::println(stderr, "\tDEBUG: watermark={}, garbage collected txn{}", watermark, it->first ^ TXN_START_ID);
+        it = txn_map_.erase(it);
+      } else {
+        ++it;
+      }
     } else {
       ++it;
     }

@@ -110,6 +110,15 @@ auto TransactionManager::GetUndoLogOptional(UndoLink link) -> std::optional<Undo
   return txn->GetUndoLog(link.prev_log_idx_);
 }
 
+auto TransactionManager::GetUndoLogOptionalUnsafe(UndoLink link) -> std::optional<UndoLog> {
+  auto iter = txn_map_.find(link.prev_txn_);
+  if (iter == txn_map_.end()) {
+    return std::nullopt;
+  }
+  auto txn = iter->second;
+  return txn->GetUndoLog(link.prev_log_idx_);
+}
+
 /** @brief Access the transaction undo log buffer and get the undo log. Except when accessing the current txn buffer,
  * you should always call this function to get the undo log instead of manually retrieve the txn shared_ptr and access
  * the buffer. */

@@ -52,6 +52,8 @@ class TransactionManager {
 
   auto GetUndoLogOptional(UndoLink link) -> std::optional<UndoLog>;
 
+  auto GetUndoLogOptionalUnsafe(UndoLink link) -> std::optional<UndoLog>;
+
   auto GetUndoLog(UndoLink link) -> UndoLog;
 
   /** @brief Get the lowest read timestamp in the system. */
