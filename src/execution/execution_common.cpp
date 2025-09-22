@@ -313,8 +313,9 @@ auto IsWriteWriteConflict(Transaction * txn, const TupleMeta & base_meta) -> boo
 void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const TableInfo *table_info,
                TableHeap *table_heap) {
   // always use stderr for printing logs...
+  const auto watermark = txn_mgr->GetWatermark();
   fmt::println(stderr, "debug_hook: {}", info);
-  fmt::println(stderr, "TXN_START_ID: {}", TXN_START_ID);
+  fmt::println(stderr, "watermark: {}", watermark);
 
   auto it = table_heap->MakeIterator();
 
@@ -342,15 +343,16 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
     
     auto undo_link = txn_mgr->GetUndoLink(rid);
     while (undo_link.has_value() && undo_link->IsValid()) {
-      auto undo_log = txn_mgr->GetUndoLog(undo_link.value());
-      
+      auto undo_log = txn_mgr->GetUndoLogOptional(undo_link.value());
+
+      if (!undo_log.has_value()) break;
       std::string undo_txn_str;
       undo_txn_str = fmt::format("txn{}@{}", undo_link->prev_txn_ ^ TXN_START_ID, undo_link->prev_log_idx_);
-      std::string undo_tuple_str = undo_log.is_deleted_ ? "<del>" : "(";
-      if (!undo_log.is_deleted_) {
+      std::string undo_tuple_str = undo_log->is_deleted_ ? "<del>" : "(";
+      if (!undo_log->is_deleted_) {
         std::vector<uint32_t> modified_indices;
-        for (uint32_t i = 0; i < undo_log.modified_fields_.size(); ++i) {
-          if (undo_log.modified_fields_[i]) {
+        for (uint32_t i = 0; i < undo_log->modified_fields_.size(); ++i) {
+          if (undo_log->modified_fields_[i]) {
             modified_indices.push_back(i);
           }
         }
@@ -360,8 +362,8 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
         
         for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
           if (i > 0) undo_tuple_str += ", ";
-          if (undo_log.modified_fields_[i]) {
-            auto value = undo_log.tuple_.GetValue(partial_schema.get(), partial_idx++);
+          if (undo_log->modified_fields_[i]) {
+            auto value = undo_log->tuple_.GetValue(partial_schema.get(), partial_idx++);
             if (value.IsNull()) {
               undo_tuple_str += "<NULL>";
             } else {
@@ -373,11 +375,11 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
         }
         undo_tuple_str += ")";
       }
-      auto is_temp_ts = undo_log.ts_ >= TXN_START_ID;
-      auto ts = is_temp_ts ? undo_log.ts_ ^ TXN_START_ID : undo_log.ts_;
+      auto is_temp_ts = undo_log->ts_ >= TXN_START_ID;
+      auto ts = is_temp_ts ? undo_log->ts_ ^ TXN_START_ID : undo_log->ts_;
 
       fmt::println(stderr, "\t{} {} ts={}{}", undo_txn_str, undo_tuple_str, is_temp_ts ? "txn" : "", ts);
-      undo_link = undo_log.prev_version_;
+      undo_link = undo_log->prev_version_;
     }
     
     ++it;
