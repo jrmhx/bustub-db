@@ -14,6 +14,8 @@
 #include <memory>
 #include "common/config.h"
 #include "common/macros.h"
+#include "concurrency/transaction_manager.h"
+#include "execution/execution_common.h"
 #include "storage/index/b_plus_tree_index.h"
 
 namespace bustub {
@@ -29,7 +31,9 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
   plan_ = plan;
   auto *catalog = exec_ctx->GetCatalog();
   BUSTUB_ASSERT(catalog != nullptr, "invalid catalog");
-  table_info_ = catalog->GetTable(plan_->table_oid_).get();
+  txn_mgr_ = exec_ctx->GetTransactionManager();
+  txn_ = exec_ctx->GetTransaction();
+  table_info_ = catalog->GetTable(plan_->table_oid_);
   BUSTUB_ASSERT(table_info_ != nullptr, "invalid table_info");
 }
 
@@ -45,7 +49,7 @@ void IndexScanExecutor::Init() {
     key_values.reserve(plan_->pred_keys_.size());
 
     for (const auto &expr : plan_->pred_keys_) {
-      // evaluate the expression (these should be constant values for point lookup)
+      // these should be constant values for point lookup
       Value value = expr->Evaluate(nullptr, GetOutputSchema());
       key_values.push_back(value);
     }
@@ -54,7 +58,6 @@ void IndexScanExecutor::Init() {
 
     Tuple key_tuple(key_values, &index_info->key_schema_);
     pt_lkup_res_.clear();
-    // use the index's ScanKey method for efficient point lookup
     index_info->index_->ScanKey(key_tuple, &pt_lkup_res_, exec_ctx_->GetTransaction());
     pt_lkup_iter_ = pt_lkup_res_.begin();
   }
@@ -65,7 +68,6 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     return false;
   }
 
-  // check if we have predicate keys for point lookup
   if (!plan_->pred_keys_.empty()) {
     return HandlePointLookup(tuple, rid);
   } else {  // NOLINT
@@ -75,26 +77,34 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
 auto IndexScanExecutor::HandlePointLookup(Tuple *tuple, RID *rid) -> bool {
   while (pt_lkup_iter_ != pt_lkup_res_.end()) {
-    const auto r = *pt_lkup_iter_;
+    auto r = *pt_lkup_iter_;
     ++pt_lkup_iter_;
 
     if (r.GetPageId() == INVALID_PAGE_ID) {
       continue;
     }
-    auto tuple_meta = table_info_->table_->GetTupleMeta(r);
-    if (!tuple_meta.is_deleted_) {
-      const auto [meta, t] = table_info_->table_->GetTuple(r);
+    const auto [meta, t, undo_link] = GetTupleAndUndoLink(txn_mgr_, table_info_->table_.get(), r);
 
-      if (plan_->filter_predicate_ != nullptr) {
-        auto result = plan_->filter_predicate_->Evaluate(&t, GetOutputSchema());
-        if (!result.GetAs<bool>()) {
-          continue;
-        }
-      }
-      *tuple = t;
-      *rid = r;
-      return true;
+    auto undo_logs = CollectUndoLogs(r, meta, t, undo_link, txn_, txn_mgr_);
+    if (undo_logs == std::nullopt) {
+      continue;
     }
+
+    auto tuple_opt = ReconstructTuple(&table_info_->schema_, t, meta, undo_logs.value());
+
+    if (tuple_opt == std::nullopt) {
+      continue;
+    }
+
+    if (plan_->filter_predicate_ != nullptr) {
+      auto result = plan_->filter_predicate_->Evaluate(&tuple_opt.value(), GetOutputSchema());
+      if (!result.GetAs<bool>()) {
+        continue;
+      }
+    }
+    *tuple = tuple_opt.value();
+    *rid = r;
+    return true;
   }
   return false;
 }
@@ -112,22 +122,29 @@ auto IndexScanExecutor::HandleFullScan(Tuple *tuple, RID *rid) -> bool {
       continue;
     }
 
-    auto tuple_meta = table_info_->table_->GetTupleMeta(r);
-    if (!tuple_meta.is_deleted_) {
-      const auto [meta, t] = table_info_->table_->GetTuple(r);
+    const auto [meta, t, undo_link] = GetTupleAndUndoLink(txn_mgr_, table_info_->table_.get(), r);
 
-      if (plan_->filter_predicate_ != nullptr) {
-        auto result = plan_->filter_predicate_->Evaluate(&t, GetOutputSchema());
-        if (!result.GetAs<bool>()) {
-          continue;
-        }
-      }
-      *tuple = t;
-      *rid = r;
-      return true;
+    auto undo_logs = CollectUndoLogs(r, meta, t, undo_link, txn_, txn_mgr_);
+    if (undo_logs == std::nullopt) {
+      continue;
     }
-  }
 
+    auto tuple_opt = ReconstructTuple(&table_info_->schema_, t, meta, undo_logs.value());
+
+    if (tuple_opt == std::nullopt) {
+      continue;
+    }
+
+    if (plan_->filter_predicate_ != nullptr) {
+      auto result = plan_->filter_predicate_->Evaluate(&tuple_opt.value(), GetOutputSchema());
+      if (!result.GetAs<bool>()) {
+        continue;
+      }
+    }
+    *tuple = tuple_opt.value();
+    *rid = r;
+    return true;
+  }
   return false;
 }
 

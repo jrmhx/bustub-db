@@ -59,9 +59,7 @@ auto TransactionManager::Begin(IsolationLevel isolation_level) -> Transaction * 
 
 /** @brief Verify if a txn satisfies serializability. We will not test this function and you can change / remove it as
  * you want. */
-auto TransactionManager::VerifyTxn(Transaction *txn) -> bool { 
-  return true;
-}
+auto TransactionManager::VerifyTxn(Transaction *txn) -> bool { return true; }
 
 /**
  * Commits a transaction.
@@ -71,7 +69,7 @@ auto TransactionManager::VerifyTxn(Transaction *txn) -> bool {
 auto TransactionManager::Commit(Transaction *txn) -> bool {
   std::unique_lock<std::mutex> commit_lck(commit_mutex_);
 
-  txn->commit_ts_.store(last_commit_ts_.load()+1);
+  txn->commit_ts_.store(last_commit_ts_.load() + 1);
 
   if (txn->state_ != TransactionState::RUNNING) {
     throw Exception("txn not in running state");
@@ -86,14 +84,15 @@ auto TransactionManager::Commit(Transaction *txn) -> bool {
   }
 
   // the below code of commit update the base tuple's meta.ts_ to commit ts
-  // it only work with all write executor using TableHeap::UpdateTuple() with a correct check() passed to provide txn level write write conflict.
+  // it only work with all write executor using TableHeap::UpdateTuple() with a correct check() passed to provide txn
+  // level write write conflict.
   const auto &ws = txn->GetWriteSets();
   for (const auto &[table_oid, rids] : ws) {
     const auto table_info = this->catalog_->GetTable(table_oid);
     for (const auto rid : rids) {
       auto meta = table_info->table_->GetTupleMeta(rid);
       meta.ts_ = txn->GetCommitTs();
-      table_info->table_->UpdateTupleMeta(meta, rid); // this func acquire table_heap page lock
+      table_info->table_->UpdateTupleMeta(meta, rid);  // this func acquire table_heap page lock
     }
   }
 
@@ -122,23 +121,24 @@ void TransactionManager::Abort(Transaction *txn) {
 
 /** @brief Stop-the-world garbage collection. Will be called only when all transactions are not accessing the table
  * heap. */
-void TransactionManager::GarbageCollection() { 
+void TransactionManager::GarbageCollection() {
   std::unique_lock<std::shared_mutex> lock(txn_map_mutex_);
   auto watermark = GetWatermark();
   std::unordered_set<UndoLink, std::hash<UndoLink>> reachable;
-  
+
   auto table_names = catalog_->GetTableNames();
-  for (const auto& table_name : table_names) {
+  for (const auto &table_name : table_names) {
     auto table_info = catalog_->GetTable(table_name);
     if (table_info == nullptr) continue;
-    
+
     auto table_heap = table_info->table_.get();
     auto it = table_heap->MakeIterator();
-    
+
     while (!it.IsEnd()) {
       const auto rid = it.GetRID();
       const auto [meta, tuple, undo_link] = GetTupleAndUndoLink(this, table_heap, rid);
-      // fmt::println(stderr, "\tDEBUG: rid{}/{}, tuple_ts={}, tuple_is_delete={}", rid.GetPageId(), rid.GetSlotNum(), meta.ts_, meta.is_deleted_ ? 1 : 0);
+      // fmt::println(stderr, "\tDEBUG: rid{}/{}, tuple_ts={}, tuple_is_delete={}", rid.GetPageId(), rid.GetSlotNum(),
+      // meta.ts_, meta.is_deleted_ ? 1 : 0);
       if (meta.ts_ <= watermark) {
         ++it;
         continue;
@@ -157,16 +157,16 @@ void TransactionManager::GarbageCollection() {
           break;
         }
       }
-      
+
       ++it;
     }
   }
 
   for (auto it = txn_map_.begin(); it != txn_map_.end();) {
-    if (it->second->GetTransactionState() == TransactionState::COMMITTED || 
+    if (it->second->GetTransactionState() == TransactionState::COMMITTED ||
         it->second->GetTransactionState() == TransactionState::ABORTED) {
       auto can_gc = true;
-      
+
       for (int i = 0; i < static_cast<int>(it->second->undo_logs_.size()); ++i) {
         UndoLink target_link{it->first, i};
         if (reachable.find(target_link) != reachable.end()) {
@@ -174,7 +174,7 @@ void TransactionManager::GarbageCollection() {
           break;
         }
       }
-      
+
       if (can_gc) {
         fmt::println(stderr, "\tDEBUG: watermark={}, garbage collected txn{}", watermark, it->first ^ TXN_START_ID);
         it = txn_map_.erase(it);

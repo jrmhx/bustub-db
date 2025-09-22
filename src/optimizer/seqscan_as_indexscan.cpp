@@ -45,7 +45,7 @@ auto ExtractOrEqualityConstants(const AbstractExpression *expr, uint32_t target_
       values.insert(values.end(), right_values.begin(), right_values.end());
     }
   } else if (const auto *comp_expr = dynamic_cast<const ComparisonExpression *>(expr);
-           comp_expr != nullptr && comp_expr->comp_type_ == ComparisonType::Equal) {
+             comp_expr != nullptr && comp_expr->comp_type_ == ComparisonType::Equal) {
     // check if this is a single equality comparison (column = constant or constant = column)
     const auto *left_expr = comp_expr->GetChildAt(0).get();
     const auto *right_expr = comp_expr->GetChildAt(1).get();
@@ -90,11 +90,9 @@ auto Optimizer::OptimizeSeqScanAsIndexScan(const bustub::AbstractPlanNodeRef &pl
           if (auto index = MatchIndex(seq_scan_plan.table_name_, col_idx); index != std::nullopt) {
             auto [index_oid, index_name] = index.value();
 
-            return std::make_shared<IndexScanPlanNode>(
-                seq_scan_plan.output_schema_, seq_scan_plan.table_oid_, index_oid,
-                seq_scan_plan.filter_predicate_,      
-                std::vector<AbstractExpressionRef>{} 
-            );
+            return std::make_shared<IndexScanPlanNode>(seq_scan_plan.output_schema_, seq_scan_plan.table_oid_,
+                                                       index_oid, seq_scan_plan.filter_predicate_,
+                                                       std::vector<AbstractExpressionRef>{});
           }
         }
       }
@@ -131,10 +129,8 @@ auto Optimizer::OptimizeSeqScanAsIndexScan(const bustub::AbstractPlanNodeRef &pl
             std::vector<AbstractExpressionRef> pred_keys;
             pred_keys.emplace_back(std::make_shared<ConstantValueExpression>(const_expr->val_));
 
-            return std::make_shared<IndexScanPlanNode>(
-                seq_scan_plan.output_schema_, seq_scan_plan.table_oid_, index_oid,
-                nullptr, 
-                std::move(pred_keys));
+            return std::make_shared<IndexScanPlanNode>(seq_scan_plan.output_schema_, seq_scan_plan.table_oid_,
+                                                       index_oid, nullptr, std::move(pred_keys));
           }
         }
       }

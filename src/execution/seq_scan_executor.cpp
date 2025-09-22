@@ -38,9 +38,7 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
   table_iter_.reset(nullptr);
 }
 
-void SeqScanExecutor::Init() {
-  table_iter_ = std::make_unique<TableIterator>(table_info_->table_->MakeIterator());
-}
+void SeqScanExecutor::Init() { table_iter_ = std::make_unique<TableIterator>(table_info_->table_->MakeIterator()); }
 
 /**
  * Yield the next tuple from the sequential scan.

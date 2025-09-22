@@ -44,8 +44,8 @@ class DeleteExecutor : public AbstractExecutor {
 
   /** The child executor from which RIDs for deleted tuples are pulled */
   std::unique_ptr<AbstractExecutor> child_executor_;
-  TransactionManager * txn_mgr_;
+  TransactionManager *txn_mgr_;
   std::shared_ptr<TableInfo> table_info_;
-  Transaction * txn_;
+  Transaction *txn_;
 };
 }  // namespace bustub

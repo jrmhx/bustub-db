@@ -212,13 +212,13 @@ class Transaction {
 }  // namespace bustub
 
 namespace std {
-  template <> 
-  struct hash<bustub::UndoLink> {
-    int64_t operator() (const bustub::UndoLink &undo_link) const {
-      return undo_link.prev_txn_ ^ (static_cast<int64_t>(undo_link.prev_log_idx_) << 32);
-    }
-  };
-}
+template <>
+struct hash<bustub::UndoLink> {
+  int64_t operator()(const bustub::UndoLink &undo_link) const {
+    return undo_link.prev_txn_ ^ (static_cast<int64_t>(undo_link.prev_log_idx_) << 32);
+  }
+};
+}  // namespace std
 
 template <>
 struct fmt::formatter<bustub::IsolationLevel> : formatter<std::string_view> {

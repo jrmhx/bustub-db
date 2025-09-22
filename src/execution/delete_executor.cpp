@@ -11,14 +11,14 @@
 //===----------------------------------------------------------------------===//
 
 #include <memory>
+#include <optional>
+#include <sstream>
 #include "common/config.h"
 #include "common/macros.h"
 #include "concurrency/transaction.h"
 #include "concurrency/transaction_manager.h"
 #include "execution/execution_common.h"
 #include "fmt/ostream.h"
-#include <optional>
-#include <sstream>
 #include "storage/table/tuple.h"
 #include "type/value_factory.h"
 
@@ -71,9 +71,10 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   while (child_executor_->Next(&t, &r)) {
     const auto [base_meta, base_tuple, base_ulink] = GetTupleAndUndoLink(txn_mgr_, table_info_->table_.get(), r);
     if (IsWriteWriteConflict(txn_, base_meta)) {
-      txn_->SetTainted(); // tained means marked to be aborted but havent aborted yet
+      txn_->SetTainted();  // tained means marked to be aborted but havent aborted yet
       std::ostringstream error_msg;
-      fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained", txn_->GetTransactionIdHumanReadable());
+      fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained",
+                 txn_->GetTransactionIdHumanReadable());
       throw ExecutionException(error_msg.str());
     } else {
       const auto old_meta = base_meta;
@@ -81,67 +82,45 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       TupleMeta updated_meta = {txn_->GetTransactionTempTs(), true};
       auto updated_ulink = base_ulink;
       if (base_meta.ts_ <= txn_->GetReadTs()) {
-        auto ulog = GenerateNewUndoLog(
-          &table_info_->schema_, 
-          &base_tuple, nullptr, 
-          base_meta.ts_,
-          base_ulink.value_or(UndoLink{})
-        );
+        auto ulog = GenerateNewUndoLog(&table_info_->schema_, &base_tuple, nullptr, base_meta.ts_,
+                                       base_ulink.value_or(UndoLink{}));
         updated_ulink = txn_->AppendUndoLog(ulog);
       } else if (base_meta.ts_ == txn_->GetTransactionTempTs()) {
-        if (base_ulink.has_value()) { // tuple is not newly inserted
+        if (base_ulink.has_value()) {  // tuple is not newly inserted
           auto base_ulog = txn_mgr_->GetUndoLog(base_ulink.value());
           auto ulog = GenerateUpdatedUndoLog(&table_info_->schema_, &base_tuple, nullptr, base_ulog);
           txn_->ModifyUndoLog(base_ulink->prev_log_idx_, ulog);
         }
       }
       auto success_write = UpdateTupleAndUndoLink(
-        txn_mgr_, 
-        r, 
-        updated_ulink, 
-        table_info_->table_.get(), 
-        txn_, 
-        updated_meta, 
-        base_tuple,
-        [old_meta, old_tuple, r] (const TupleMeta &meta, const Tuple &tuple, const RID rid, const std::optional<UndoLink> ulink) {
-          auto pass = (
-            r == rid &&
-            old_meta == meta && 
-            IsTupleContentEqual(old_tuple, tuple)
-          );
+          txn_mgr_, r, updated_ulink, table_info_->table_.get(), txn_, updated_meta, base_tuple,
+          [old_meta, old_tuple, r](const TupleMeta &meta, const Tuple &tuple, const RID rid,
+                                   const std::optional<UndoLink> ulink) {
+            auto pass = (r == rid && old_meta == meta && IsTupleContentEqual(old_tuple, tuple));
 
-          // debug
-          if (!pass) {
-            fmt::println(stderr, "=== DELETE CHECK FAILED ===");
-            fmt::println(stderr, "\tr: {}/{}, rid: {}/{}", r.GetPageId(), r.GetSlotNum(), rid.GetPageId(), rid.GetSlotNum());
-            fmt::println(stderr, "\told_meta: ts={}, is_deleted={}", old_meta.ts_, old_meta.is_deleted_);
-            fmt::println(stderr, "\tmeta: ts={}, is_deleted={}", meta.ts_, meta.is_deleted_);
-            fmt::println(stderr, "\told_tuple size: {}", old_tuple.GetLength());
-            fmt::println(stderr, "\ttuple size: {}", tuple.GetLength());
-            fmt::println(stderr, "\tulink: {}", ulink.has_value() ? "has_value" : "nullopt");
-            fmt::println(stderr, "\ttuple_content_equal: {}", IsTupleContentEqual(old_tuple, tuple));
-            fmt::println(stderr, "========================");
-          }
-          return pass;
-        }
-      );
+            // debug
+            if (!pass) {
+              fmt::println(stderr, "=== DELETE CHECK FAILED ===");
+              fmt::println(stderr, "\tr: {}/{}, rid: {}/{}", r.GetPageId(), r.GetSlotNum(), rid.GetPageId(),
+                           rid.GetSlotNum());
+              fmt::println(stderr, "\told_meta: ts={}, is_deleted={}", old_meta.ts_, old_meta.is_deleted_);
+              fmt::println(stderr, "\tmeta: ts={}, is_deleted={}", meta.ts_, meta.is_deleted_);
+              fmt::println(stderr, "\told_tuple size: {}", old_tuple.GetLength());
+              fmt::println(stderr, "\ttuple size: {}", tuple.GetLength());
+              fmt::println(stderr, "\tulink: {}", ulink.has_value() ? "has_value" : "nullopt");
+              fmt::println(stderr, "\ttuple_content_equal: {}", IsTupleContentEqual(old_tuple, tuple));
+              fmt::println(stderr, "========================");
+            }
+            return pass;
+          });
       if (success_write) {
         txn_->AppendWriteSet(table_info_->oid_, r);
-        //update index
-        auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-        auto *txn = exec_ctx_->GetTransaction();
-        for (auto &index_info : indexes) {
-          index_info->index_->DeleteEntry(
-            base_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
-            r, 
-            txn
-          );
-        }
         ++deleted;
       } else {
         txn_->SetTainted();
         std::ostringstream error_msg;
-        fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained", txn_->GetTransactionIdHumanReadable());
+        fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained",
+                   txn_->GetTransactionIdHumanReadable());
         throw ExecutionException(error_msg.str());
       }
     }

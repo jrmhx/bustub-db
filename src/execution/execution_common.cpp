@@ -102,7 +102,7 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
   bool is_deleted = base_meta.is_deleted_;
   std::vector<Value> values;
   values.reserve(schema->GetColumnCount());
-  for(uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
+  for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
     values.emplace_back(base_tuple.GetValue(schema, i));
   }
 
@@ -114,30 +114,24 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
     is_deleted = false;
 
     std::vector<uint32_t> modified_indices;
-    std::for_each(
-      undo_log.modified_fields_.begin(),
-      undo_log.modified_fields_.end(),
-      [&modified_indices, idx=uint32_t{0}] (bool is_modified) mutable {
-        if (is_modified) {
-          modified_indices.push_back(idx);
-        }
-        ++idx;
-      }
-    );
+    std::for_each(undo_log.modified_fields_.begin(), undo_log.modified_fields_.end(),
+                  [&modified_indices, idx = uint32_t{0}](bool is_modified) mutable {
+                    if (is_modified) {
+                      modified_indices.push_back(idx);
+                    }
+                    ++idx;
+                  });
     auto partical_schema = std::make_unique<Schema>(Schema::CopySchema(schema, modified_indices));
-    std::for_each(
-      undo_log.modified_fields_.begin(),
-      undo_log.modified_fields_.end(),
-      [&, base_idx=uint32_t{0}, update_idx=uint32_t{0}](bool is_modified) mutable {
-        if (is_modified) {
-          values.at(base_idx) = undo_log.tuple_.GetValue(partical_schema.get(), update_idx);
-          ++update_idx;
-        }
-        ++base_idx;
-      }
-    );
+    std::for_each(undo_log.modified_fields_.begin(), undo_log.modified_fields_.end(),
+                  [&, base_idx = uint32_t{0}, update_idx = uint32_t{0}](bool is_modified) mutable {
+                    if (is_modified) {
+                      values.at(base_idx) = undo_log.tuple_.GetValue(partical_schema.get(), update_idx);
+                      ++update_idx;
+                    }
+                    ++base_idx;
+                  });
   }
-  
+
   return is_deleted ? std::nullopt : std::make_optional<Tuple>(values, schema);
 }
 
@@ -168,7 +162,7 @@ auto CollectUndoLogs(RID rid, const TupleMeta &base_meta, const Tuple &base_tupl
       auto udlg = txn_mgr->GetUndoLog(undo_link.value());
       undo_link = std::make_optional(udlg.prev_version_);
       udlgs.push_back(udlg);
-      if (udlg.ts_ <= txn->GetReadTs() ) {
+      if (udlg.ts_ <= txn->GetReadTs()) {
         break;
       }
     }
@@ -179,19 +173,19 @@ auto CollectUndoLogs(RID rid, const TupleMeta &base_meta, const Tuple &base_tupl
 
     return std::make_optional(udlgs);
 
-  } else { // tuple is updated by a committed txn
+  } else {  // tuple is updated by a committed txn
     if (base_meta.ts_ > txn->GetReadTs()) {
       std::vector<UndoLog> udlgs;
       while (undo_link.has_value() && undo_link->IsValid()) {
         auto udlg = txn_mgr->GetUndoLog(undo_link.value());
         udlgs.push_back(udlg);
         undo_link = std::make_optional(udlg.prev_version_);
-        
+
         if (udlg.ts_ <= txn->GetReadTs()) {
           break;
         }
       }
-      
+
       if (udlgs.empty() || udlgs.back().ts_ > txn->GetReadTs()) {
         return std::nullopt;
       }
@@ -215,13 +209,13 @@ auto CollectUndoLogs(RID rid, const TupleMeta &base_meta, const Tuple &base_tupl
  */
 auto GenerateNewUndoLog(const Schema *schema, const Tuple *base_tuple, const Tuple *target_tuple, timestamp_t ts,
                         UndoLink prev_version) -> UndoLog {
-  if (base_tuple==nullptr && target_tuple == nullptr) {
+  if (base_tuple == nullptr && target_tuple == nullptr) {
     throw Exception("Cannot generate undo_log for 2 nullptr");
   }
   UndoLog undo_log;
   undo_log.ts_ = ts;
   undo_log.prev_version_ = prev_version;
-  if (target_tuple==nullptr) {
+  if (target_tuple == nullptr) {
     undo_log.modified_fields_ = std::vector<bool>(schema->GetColumnCount(), true);
     undo_log.is_deleted_ = false;
     undo_log.tuple_ = *base_tuple;
@@ -233,7 +227,7 @@ auto GenerateNewUndoLog(const Schema *schema, const Tuple *base_tuple, const Tup
     std::vector<uint32_t> attrs;
     std::vector<Value> values;
     for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
-      if (!base_tuple->GetValue(schema, i).CompareExactlyEquals(target_tuple->GetValue(schema, i))){
+      if (!base_tuple->GetValue(schema, i).CompareExactlyEquals(target_tuple->GetValue(schema, i))) {
         undo_log.modified_fields_.at(i) = true;
         attrs.push_back(i);
         values.push_back(base_tuple->GetValue(schema, i));
@@ -245,7 +239,7 @@ auto GenerateNewUndoLog(const Schema *schema, const Tuple *base_tuple, const Tup
     auto mask_schema = schema->CopySchema(schema, attrs);
     undo_log.tuple_ = Tuple(values, &mask_schema);
   }
-  
+
   return undo_log;
 }
 
@@ -261,7 +255,7 @@ auto GenerateNewUndoLog(const Schema *schema, const Tuple *base_tuple, const Tup
  */
 auto GenerateUpdatedUndoLog(const Schema *schema, const Tuple *base_tuple, const Tuple *target_tuple,
                             const UndoLog &log) -> UndoLog {
-  if (base_tuple==nullptr && target_tuple == nullptr) {
+  if (base_tuple == nullptr && target_tuple == nullptr) {
     throw Exception("Cannot generate undo_log for 2 nullptr");
   }
   UndoLog undo_log;
@@ -273,7 +267,7 @@ auto GenerateUpdatedUndoLog(const Schema *schema, const Tuple *base_tuple, const
   std::vector<uint32_t> attrs;
 
   if (!log.is_deleted_) {
-    auto origin = ReconstructTuple(schema, *base_tuple, {.ts_=0, .is_deleted_=false}, {log});
+    auto origin = ReconstructTuple(schema, *base_tuple, {.ts_ = 0, .is_deleted_ = false}, {log});
     values.reserve(schema->GetColumnCount());
     attrs.reserve(schema->GetColumnCount());
     for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
@@ -302,7 +296,7 @@ auto GenerateUpdatedUndoLog(const Schema *schema, const Tuple *base_tuple, const
  * @param txn The pointer of the txn that will conduct a write op.
  * @param base_meta the meta of the tuple in the table heap
  */
-auto IsWriteWriteConflict(Transaction * txn, const TupleMeta & base_meta) -> bool {
+auto IsWriteWriteConflict(Transaction *txn, const TupleMeta &base_meta) -> bool {
   if (txn != nullptr && (base_meta.ts_ == txn->GetTransactionTempTs() || (base_meta.ts_ <= txn->GetReadTs()))) {
     return false;
   }
@@ -322,25 +316,24 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
   while (!it.IsEnd()) {
     const auto rid = it.GetRID();
     const auto [meta, tuple] = it.GetTuple();
-    
+
     std::string ts_str;
     if (meta.ts_ >= TXN_START_ID) {
       ts_str = fmt::format("txn{}", meta.ts_ ^ TXN_START_ID);
     } else {
       ts_str = std::to_string(meta.ts_);
     }
-    
+
     const auto *schema = &table_info->schema_;
     std::string tuple_str = tuple.ToString(schema);
 
     if (meta.is_deleted_) {
-      fmt::println(stderr, "RID={}/{} ts={} <del marker> tuple={}", 
-                   rid.GetPageId(), rid.GetSlotNum(), ts_str, tuple_str);
+      fmt::println(stderr, "RID={}/{} ts={} <del marker> tuple={}", rid.GetPageId(), rid.GetSlotNum(), ts_str,
+                   tuple_str);
     } else {
-      fmt::println(stderr, "RID={}/{} ts={} tuple={}", 
-                   rid.GetPageId(), rid.GetSlotNum(), ts_str, tuple_str);
+      fmt::println(stderr, "RID={}/{} ts={} tuple={}", rid.GetPageId(), rid.GetSlotNum(), ts_str, tuple_str);
     }
-    
+
     auto undo_link = txn_mgr->GetUndoLink(rid);
     while (undo_link.has_value() && undo_link->IsValid()) {
       auto undo_log = txn_mgr->GetUndoLogOptional(undo_link.value());
@@ -356,10 +349,10 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
             modified_indices.push_back(i);
           }
         }
-        
+
         auto partial_schema = std::make_unique<Schema>(Schema::CopySchema(schema, modified_indices));
         uint32_t partial_idx = 0;
-        
+
         for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
           if (i > 0) undo_tuple_str += ", ";
           if (undo_log->modified_fields_[i]) {
@@ -381,7 +374,7 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
       fmt::println(stderr, "\t{} {} ts={}{}", undo_txn_str, undo_tuple_str, is_temp_ts ? "txn" : "", ts);
       undo_link = undo_log->prev_version_;
     }
-    
+
     ++it;
   }
 

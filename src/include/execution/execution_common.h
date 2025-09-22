@@ -81,10 +81,10 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
 // your implementation. Please add your own ones as necessary so that you do not need to write
 // the same code everywhere.
 
-auto IsWriteWriteConflict(Transaction * txn, const TupleMeta & base_meta) -> bool;
+auto IsWriteWriteConflict(Transaction *txn, const TupleMeta &base_meta) -> bool;
 
 auto GenerateNullTupleForSchema(const Schema *schema) -> std::optional<Tuple>;
 
-auto GetUndoLogSchema(const UndoLog & undo_log) -> std::optional<Schema>;
+auto GetUndoLogSchema(const UndoLog &undo_log) -> std::optional<Schema>;
 
 }  // namespace bustub

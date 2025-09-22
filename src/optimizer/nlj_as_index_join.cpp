@@ -70,7 +70,7 @@ auto Optimizer::OptimizeNLJAsIndexJoin(const AbstractPlanNodeRef &plan) -> Abstr
                 std::make_shared<ColumnValueExpression>(0, left_expr->GetColIdx(), left_expr->GetReturnType());
             auto right_expr_tuple_0 =
                 std::make_shared<ColumnValueExpression>(0, right_expr->GetColIdx(), right_expr->GetReturnType());
-            
+
             if (nlj_plan.GetRightPlan()->GetType() == PlanType::SeqScan) {
               const auto &right_seq_scan = dynamic_cast<const SeqScanPlanNode &>(*nlj_plan.GetRightPlan());
               if (left_expr->GetTupleIdx() == 0 && right_expr->GetTupleIdx() == 1) {

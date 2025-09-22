@@ -76,13 +76,14 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     // MVCC makes the txn can only write on the tuple version that they can see
     // if the to-be-written tuple's latest version is not visable to txn_ there is a write write conflict
 
-    //atomic fetch meta, tuple, undo_link
+    // atomic fetch meta, tuple, undo_link
     const auto [base_meta, base_tuple, base_ulink] = GetTupleAndUndoLink(txn_mgr_, table_info_->table_.get(), r);
     // check write write conflict
     if (IsWriteWriteConflict(txn_, base_meta)) {
-      txn_->SetTainted(); // tained means marked to be aborted but havent aborted yet
+      txn_->SetTainted();
       std::ostringstream error_msg;
-      fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained", txn_->GetTransactionIdHumanReadable());
+      fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained",
+                 txn_->GetTransactionIdHumanReadable());
       throw ExecutionException(error_msg.str());
     }
     std::vector<Value> values;
@@ -93,72 +94,75 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     Tuple updated_tuple(values, &table_info_->schema_);
     auto updated_meta = TupleMeta{txn_->GetTransactionTempTs(), false};
     auto updated_ulink = base_ulink;
-    if (base_meta.ts_ <= txn_->GetReadTs()) {
-      auto ulog = GenerateNewUndoLog(
-        &table_info_->schema_, 
-        &base_tuple, 
-        &updated_tuple, 
-        base_meta.ts_, 
-        base_ulink.value_or(UndoLink{})
-      );
-      updated_ulink = txn_->AppendUndoLog(ulog);
-      
-    } else if (base_meta.ts_ == txn_->GetTransactionTempTs()) {
-      if (base_ulink.has_value()) { // its not a newly inserted tuple
-        auto base_ulog = txn_mgr_->GetUndoLog(base_ulink.value());
-        auto ulog = GenerateUpdatedUndoLog(&table_info_->schema_, &base_tuple, &updated_tuple, base_ulog);
-        txn_->ModifyUndoLog(base_ulink->prev_log_idx_, ulog);
-      }
-    }
-    
-    const auto old_meta = base_meta;
-    const auto old_tuple = base_tuple;
-    bool success_write = false;
-    success_write = UpdateTupleAndUndoLink(
-      txn_mgr_, 
-      r, 
-      updated_ulink, 
-      table_info_->table_.get(), 
-      txn_, 
-      updated_meta, 
-      updated_tuple,
-      [old_meta, old_tuple, r] (const TupleMeta &meta, const Tuple &tuple, const RID rid, const std::optional<UndoLink> ulink) {
-        return (
-          r == rid &&
-          old_meta == meta && 
-          IsTupleContentEqual(old_tuple, tuple)
-        );
-      }
-    );
-    if (success_write) {
-      txn_->AppendWriteSet(table_info_->oid_, r);
-      //update index
-      auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-      for (auto &index_info : indexes) {
-        
-        index_info->index_->DeleteEntry(
-          base_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()), 
-          r, 
-          txn_
-        );
-        auto success_index_update = index_info->index_->InsertEntry(
-          updated_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
-          r, 
-          txn_
-        );
-        if (!success_index_update) {
-          txn_->SetTainted();
-          std::ostringstream error_msg;
-          fmt::print(error_msg, "txn{} failed to update index and is marked as tained", txn_->GetTransactionIdHumanReadable());
-          throw ExecutionException(error_msg.str());
+
+    // check if its PK update
+    bool is_pk_update = false;
+    const auto indices = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
+    for (const auto &index_info : indices) {
+      if (index_info->is_primary_key_) {
+        auto base_key =
+            base_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs());
+        auto update_key = updated_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_,
+                                                     index_info->index_->GetKeyAttrs());
+
+        if (!IsTupleContentEqual(update_key, base_key)) {
+          is_pk_update = true;
         }
       }
-      ++updated;
+    }
+
+    if (is_pk_update) {
+      // TODO
     } else {
-      txn_->SetTainted();
-      std::ostringstream error_msg;
-      fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained", txn_->GetTransactionIdHumanReadable());
-      throw ExecutionException(error_msg.str());
+      if (base_meta.ts_ <= txn_->GetReadTs()) {
+        auto ulog = GenerateNewUndoLog(&table_info_->schema_, &base_tuple, &updated_tuple, base_meta.ts_,
+                                       base_ulink.value_or(UndoLink{}));
+        updated_ulink = txn_->AppendUndoLog(ulog);
+
+      } else if (base_meta.ts_ == txn_->GetTransactionTempTs()) {
+        if (base_ulink.has_value()) {  // its not a newly inserted tuple
+          auto base_ulog = txn_mgr_->GetUndoLog(base_ulink.value());
+          auto ulog = GenerateUpdatedUndoLog(&table_info_->schema_, &base_tuple, &updated_tuple, base_ulog);
+          txn_->ModifyUndoLog(base_ulink->prev_log_idx_, ulog);
+        }
+      }
+
+      const auto old_meta = base_meta;
+      const auto old_tuple = base_tuple;
+      bool success_write = false;
+      success_write = UpdateTupleAndUndoLink(
+          txn_mgr_, r, updated_ulink, table_info_->table_.get(), txn_, updated_meta, updated_tuple,
+          [old_meta, old_tuple, r](const TupleMeta &meta, const Tuple &tuple, const RID rid,
+                                   const std::optional<UndoLink> ulink) {
+            return (r == rid && old_meta == meta && IsTupleContentEqual(old_tuple, tuple));
+          });
+      if (success_write) {
+        txn_->AppendWriteSet(table_info_->oid_, r);
+        // update index
+        for (auto &index_info : indices) {
+          index_info->index_->DeleteEntry(
+              base_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
+              r, txn_);
+          auto success_index_update =
+              index_info->index_->InsertEntry(updated_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_,
+                                                                         index_info->index_->GetKeyAttrs()),
+                                              r, txn_);
+          if (!success_index_update) {
+            txn_->SetTainted();
+            std::ostringstream error_msg;
+            fmt::print(error_msg, "txn{} failed to update index and is marked as tained",
+                       txn_->GetTransactionIdHumanReadable());
+            throw ExecutionException(error_msg.str());
+          }
+        }
+        ++updated;
+      } else {
+        txn_->SetTainted();
+        std::ostringstream error_msg;
+        fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained",
+                   txn_->GetTransactionIdHumanReadable());
+        throw ExecutionException(error_msg.str());
+      }
     }
   }
   *tuple = Tuple({ValueFactory::GetIntegerValue(updated)}, &plan_->OutputSchema());
