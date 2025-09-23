@@ -27,7 +27,6 @@
 #include "common/macros.h"
 #include "concurrency/transaction.h"
 #include "concurrency/transaction_manager.h"
-#include "fmt/base.h"
 #include "fmt/core.h"
 #include "storage/table/table_heap.h"
 #include "storage/table/tuple.h"

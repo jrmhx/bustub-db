@@ -20,21 +20,12 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
-
 #include "catalog/catalog.h"
-#include "catalog/column.h"
-#include "catalog/schema.h"
 #include "common/config.h"
 #include "common/exception.h"
-#include "common/macros.h"
 #include "concurrency/transaction.h"
-#include "execution/execution_common.h"
-#include "fmt/base.h"
 #include "storage/table/table_heap.h"
 #include "storage/table/tuple.h"
-#include "type/type_id.h"
-#include "type/value.h"
-#include "type/value_factory.h"
 
 namespace bustub {
 
@@ -123,8 +114,19 @@ void TransactionManager::Abort(Transaction *txn) {
  * heap. */
 void TransactionManager::GarbageCollection() {
   std::unique_lock<std::shared_mutex> lock(txn_map_mutex_);
+  auto GetUndoLogOptionalUnsafe = [&](UndoLink &link) -> std::optional<UndoLog> { // NOLINT
+    auto iter = txn_map_.find(link.prev_txn_);
+    if (iter == txn_map_.end()) {
+      return std::nullopt;
+    }
+    auto txn = iter->second;
+    return txn->GetUndoLog(link.prev_log_idx_);
+  };
   auto watermark = GetWatermark();
-  std::unordered_set<UndoLink, std::hash<UndoLink>> reachable;
+  const auto UndoLinkHash = [](const UndoLink &link) { // NOLINT
+    return link.prev_txn_ ^ (static_cast<int64_t>(link.prev_log_idx_) << 32);
+  };
+  std::unordered_set<UndoLink, decltype(UndoLinkHash)> reachable(0, UndoLinkHash);
 
   auto table_names = catalog_->GetTableNames();
   for (const auto &table_name : table_names) {
