@@ -112,7 +112,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     }
 
     if (is_pk_update) {
-      // TODO
+      // TODO(pk_update)
     } else {
       if (base_meta.ts_ <= txn_->GetReadTs()) {
         auto ulog = GenerateNewUndoLog(&table_info_->schema_, &base_tuple, &updated_tuple, base_meta.ts_,

@@ -77,19 +77,13 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     if (existing_pk_rid.empty()) {
       TupleMeta meta{txn_->GetTransactionTempTs(), false};
       auto rid = table_info_->table_->InsertTuple(meta, t);
-      if (rid == std::nullopt) {
-        txn_->SetTainted();
-        std::ostringstream error_msg;
-        fmt::print(error_msg, "allocation failure! txn{} failed to insert tuple {}",
-                   txn_->GetTransactionIdHumanReadable(), t.ToString(&table_info_->schema_));
-        throw ExecutionException(error_msg.str());
-      } else {
+      if (rid != std::nullopt) {
         txn_->AppendWriteSet(table_info_->oid_, rid.value());
         // update index
         for (const auto &index_info : indices) {
           auto key = t.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs());
           auto index_update_success = index_info->index_->InsertEntry(key, rid.value(), txn_);
-          if (index_update_success == false) {
+          if (!index_update_success) {
             txn_->SetTainted();
             std::ostringstream error_msg;
             fmt::print(error_msg, "index update failure! txn{} failed to insert tuple {}",
@@ -98,6 +92,12 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
           }
         }
         ++inserted;
+      } else {
+        txn_->SetTainted();
+        std::ostringstream error_msg;
+        fmt::print(error_msg, "allocation failure! txn{} failed to insert tuple {}",
+                   txn_->GetTransactionIdHumanReadable(), t.ToString(&table_info_->schema_));
+        throw ExecutionException(error_msg.str());
       }
     } else {
       const auto [base_meta, base_tuple, base_ulink] =

@@ -173,7 +173,7 @@ auto CollectUndoLogs(RID rid, const TupleMeta &base_meta, const Tuple &base_tupl
 
     return std::make_optional(udlgs);
 
-  } else {  // tuple is updated by a committed txn
+  } else {  // NOLINT
     if (base_meta.ts_ > txn->GetReadTs()) {
       std::vector<UndoLog> udlgs;
       while (undo_link.has_value() && undo_link->IsValid()) {
@@ -190,9 +190,8 @@ auto CollectUndoLogs(RID rid, const TupleMeta &base_meta, const Tuple &base_tupl
         return std::nullopt;
       }
       return std::make_optional(udlgs);
-    } else {
-      return std::make_optional<std::vector<UndoLog>>({});
     }
+    return std::make_optional<std::vector<UndoLog>>({});
   }
 }
 
@@ -236,7 +235,7 @@ auto GenerateNewUndoLog(const Schema *schema, const Tuple *base_tuple, const Tup
     if (values.empty()) {
       throw Exception("cannot add undo log to unchanged tuples");
     }
-    auto mask_schema = schema->CopySchema(schema, attrs);
+    auto mask_schema = Schema::CopySchema(schema, attrs);
     undo_log.tuple_ = Tuple(values, &mask_schema);
   }
 
@@ -255,7 +254,7 @@ auto GenerateNewUndoLog(const Schema *schema, const Tuple *base_tuple, const Tup
  */
 auto GenerateUpdatedUndoLog(const Schema *schema, const Tuple *base_tuple, const Tuple *target_tuple,
                             const UndoLog &log) -> UndoLog {
-  if (base_tuple == nullptr && target_tuple == nullptr) {
+  if (base_tuple == nullptr && target_tuple == nullptr) {  // NOLINT
     throw Exception("Cannot generate undo_log for 2 nullptr");
   }
   UndoLog undo_log;
@@ -266,20 +265,20 @@ auto GenerateUpdatedUndoLog(const Schema *schema, const Tuple *base_tuple, const
   std::vector<Value> values;
   std::vector<uint32_t> attrs;
 
-  if (!log.is_deleted_) {
-    auto origin = ReconstructTuple(schema, *base_tuple, {.ts_ = 0, .is_deleted_ = false}, {log});
+  if (!log.is_deleted_) {                                                                          // NOLINT
+    auto origin = ReconstructTuple(schema, *base_tuple, {.ts_ = 0, .is_deleted_ = false}, {log});  // NOLINT
     values.reserve(schema->GetColumnCount());
     attrs.reserve(schema->GetColumnCount());
     for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
       if (undo_log.modified_fields_.at(i)) {
         values.push_back(origin->GetValue(schema, i));
         attrs.push_back(i);
-      } else if (target_tuple == nullptr) {
+      } else if (target_tuple == nullptr) {  // NOLINT
         undo_log.modified_fields_.at(i) = true;
         values.push_back(origin->GetValue(schema, i));
         attrs.push_back(i);
       } else if (!target_tuple->GetValue(schema, i).CompareExactlyEquals(origin->GetValue(schema, i))) {
-        undo_log.modified_fields_.at(i) = true;
+        undo_log.modified_fields_.at(i) = true;  // NOLINT
         values.push_back(origin->GetValue(schema, i));
         attrs.push_back(i);
       }
@@ -298,7 +297,7 @@ auto GenerateUpdatedUndoLog(const Schema *schema, const Tuple *base_tuple, const
  */
 auto IsWriteWriteConflict(Transaction *txn, const TupleMeta &base_meta) -> bool {
   if (txn != nullptr && (base_meta.ts_ == txn->GetTransactionTempTs() || (base_meta.ts_ <= txn->GetReadTs()))) {
-    return false;
+    return false;  // NOLINT
   }
 
   return true;
@@ -338,7 +337,9 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
     while (undo_link.has_value() && undo_link->IsValid()) {
       auto undo_log = txn_mgr->GetUndoLogOptional(undo_link.value());
 
-      if (!undo_log.has_value()) break;
+      if (!undo_log.has_value()) {
+        break;
+      }
       std::string undo_txn_str;
       undo_txn_str = fmt::format("txn{}@{}", undo_link->prev_txn_ ^ TXN_START_ID, undo_link->prev_log_idx_);
       std::string undo_tuple_str = undo_log->is_deleted_ ? "<del>" : "(";
@@ -354,7 +355,9 @@ void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const Table
         uint32_t partial_idx = 0;
 
         for (uint32_t i = 0; i < schema->GetColumnCount(); ++i) {
-          if (i > 0) undo_tuple_str += ", ";
+          if (i > 0) {
+            undo_tuple_str += ", ";
+          }
           if (undo_log->modified_fields_[i]) {
             auto value = undo_log->tuple_.GetValue(partial_schema.get(), partial_idx++);
             if (value.IsNull()) {

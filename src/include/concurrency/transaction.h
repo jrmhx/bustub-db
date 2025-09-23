@@ -214,7 +214,7 @@ class Transaction {
 namespace std {
 template <>
 struct hash<bustub::UndoLink> {
-  int64_t operator()(const bustub::UndoLink &undo_link) const {
+  auto operator()(const bustub::UndoLink &undo_link) const -> int64_t {
     return undo_link.prev_txn_ ^ (static_cast<int64_t>(undo_link.prev_log_idx_) << 32);
   }
 };

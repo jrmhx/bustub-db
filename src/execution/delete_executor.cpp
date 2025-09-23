@@ -76,7 +76,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       fmt::print(error_msg, "txn{} encountered a write write conflict and is marked as tained",
                  txn_->GetTransactionIdHumanReadable());
       throw ExecutionException(error_msg.str());
-    } else {
+    } else {  // NOLINT
       const auto old_meta = base_meta;
       const auto old_tuple = base_tuple;
       TupleMeta updated_meta = {txn_->GetTransactionTempTs(), true};

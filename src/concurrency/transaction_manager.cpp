@@ -129,7 +129,9 @@ void TransactionManager::GarbageCollection() {
   auto table_names = catalog_->GetTableNames();
   for (const auto &table_name : table_names) {
     auto table_info = catalog_->GetTable(table_name);
-    if (table_info == nullptr) continue;
+    if (table_info == nullptr) {
+      continue;
+    }
 
     auto table_heap = table_info->table_.get();
     auto it = table_heap->MakeIterator();
